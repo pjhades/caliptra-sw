@@ -621,12 +621,16 @@ impl Drivers {
     fn create_cert_chain(drivers: &mut Drivers) -> CaliptraResult<()> {
         let data_vault = &drivers.data_vault;
         let persistent_data = &drivers.persistent_data;
-        let mut cert = [0u8; MAX_CERT_CHAIN_SIZE];
+        // SAFETY: cert_chain is an ArrayVec<u8, MAX_CERT_CHAIN_SIZE> and we're setting its length
+        // to its capacity.
+        unsafe {
+            drivers.cert_chain.set_len(MAX_CERT_CHAIN_SIZE);
+        }
+        let cert = drivers.cert_chain.as_mut_slice();
 
         // Write ldev_id cert to cert chain.
-        let ldevid_cert_size =
-            dice::copy_ldevid_cert(data_vault, persistent_data.get(), &mut cert)?;
-        if ldevid_cert_size > cert.len() {
+        let ldevid_cert_size = dice::copy_ldevid_cert(data_vault, persistent_data.get(), cert)?;
+        if ldevid_cert_size > MAX_CERT_CHAIN_SIZE {
             return Err(CaliptraError::RUNTIME_LDEV_ID_CERT_TOO_BIG);
         }
 
@@ -636,7 +640,7 @@ impl Drivers {
             persistent_data.get(),
             &mut cert[ldevid_cert_size..],
         )?;
-        if ldevid_cert_size + fmcalias_cert_size > cert.len() {
+        if ldevid_cert_size + fmcalias_cert_size > MAX_CERT_CHAIN_SIZE {
             return Err(CaliptraError::RUNTIME_FMC_ALIAS_CERT_TOO_BIG);
         }
 
@@ -646,23 +650,13 @@ impl Drivers {
             &mut cert[ldevid_cert_size + fmcalias_cert_size..],
         )?;
         let cert_chain_size = ldevid_cert_size + fmcalias_cert_size + rtalias_cert_size;
-        if cert_chain_size > cert.len() {
+        if cert_chain_size > MAX_CERT_CHAIN_SIZE {
             return Err(CaliptraError::RUNTIME_RT_ALIAS_CERT_TOO_BIG);
         }
-
-        // Copy cert chain to ArrayVec.
-        let mut cert_chain = ArrayVec::<u8, MAX_CERT_CHAIN_SIZE>::new();
-        for i in 0..cert_chain_size {
-            cert_chain
-                .try_push(
-                    *cert
-                        .get(i)
-                        .ok_or(CaliptraError::RUNTIME_CERT_CHAIN_CREATION_FAILED)?,
-                )
-                .map_err(|_| CaliptraError::RUNTIME_CERT_CHAIN_CREATION_FAILED)?;
+        // SAFETY: At this point we have successfully written cert_chain_size bytes.
+        unsafe {
+            drivers.cert_chain.set_len(cert_chain_size);
         }
-
-        drivers.cert_chain = cert_chain;
         Ok(())
     }
 
