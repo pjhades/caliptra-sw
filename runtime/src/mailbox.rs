@@ -12,7 +12,7 @@ Abstract:
 
 --*/
 
-use core::mem::size_of;
+use core::mem::{align_of, size_of};
 use core::slice;
 
 use caliptra_drivers::{memory_layout, CaliptraResult};
@@ -21,6 +21,7 @@ use caliptra_registers::mbox::{
     enums::{MboxFsmE, MboxStatusE},
     MboxCsr,
 };
+use dpe::response::{DpeErrorCode, RespBufRead, RespBufWrite};
 use zerocopy::{FromBytes, IntoBytes, Unalign};
 
 use crate::CommandId;
@@ -186,5 +187,143 @@ impl Mailbox {
                 memory_layout::MBOX_SIZE as usize,
             )
         }
+    }
+
+    /// Retrieve a mutable abstraction of the mailbox SRAM.
+    pub fn mailbox_ram(&mut self) -> CaliptraResult<MailboxRam<'_>> {
+        if !self.cmd_busy() {
+            return Err(CaliptraError::DRIVER_MAILBOX_INVALID_STATE);
+        }
+
+        // SAFETY: At this point we know that we're currently processing a mailbox command so that
+        // we have exclusive access to the underlying memory.
+        let mem = unsafe {
+            slice::from_raw_parts_mut(
+                memory_layout::MBOX_ORG as *mut u32,
+                memory_layout::MBOX_SIZE as usize,
+            )
+        };
+
+        Ok(MailboxRam { mem })
+    }
+}
+
+pub struct MailboxRam<'a> {
+    mem: &'a mut [u32],
+}
+
+impl MailboxRam<'_> {
+    const WORD_ALIGN: usize = align_of::<u32>();
+    const WORD_SIZE: usize = size_of::<u32>();
+
+    pub fn byte_len(&self) -> usize {
+        self.mem.len() * Self::WORD_ALIGN
+    }
+}
+
+impl RespBufRead for MailboxRam<'_> {
+    fn read_at(&self, data: &mut [u8], offset: usize) -> Result<(), DpeErrorCode> {
+        if offset > self.byte_len() || self.byte_len() - offset < data.len() {
+            return Err(DpeErrorCode::InvalidResponseBuf);
+        }
+
+        let mut bytes_read = 0;
+        let aligned_offset = offset.next_multiple_of(Self::WORD_ALIGN);
+        let aligned_word_idx = aligned_offset / Self::WORD_SIZE;
+
+        if aligned_offset != offset {
+            let word_idx = aligned_word_idx - 1;
+            let byte_idx = offset - word_idx * Self::WORD_SIZE;
+            let word = self.mem[word_idx];
+            let size = Self::WORD_SIZE - byte_idx;
+
+            data.get_mut(..size)
+                .ok_or(DpeErrorCode::InvalidResponseBuf)?
+                .copy_from_slice(&word.to_le_bytes()[byte_idx..]);
+
+            bytes_read += size;
+        }
+
+        let mut word_idx = aligned_word_idx;
+        while bytes_read + Self::WORD_SIZE < data.len() {
+            let word = self.mem[word_idx];
+            data.get_mut(bytes_read..bytes_read + Self::WORD_SIZE)
+                .ok_or(DpeErrorCode::InvalidResponseBuf)?
+                .copy_from_slice(word.to_le_bytes().as_slice());
+            bytes_read += Self::WORD_SIZE;
+            word_idx += 1;
+        }
+
+        let remaining_size = data.len() - bytes_read;
+        if remaining_size > 0 {
+            let word = self.mem[word_idx];
+            data.get_mut(bytes_read..bytes_read + remaining_size)
+                .ok_or(DpeErrorCode::InvalidResponseBuf)?
+                .copy_from_slice(&word.to_le_bytes()[..remaining_size]);
+        }
+
+        Ok(())
+    }
+}
+
+impl RespBufWrite for MailboxRam<'_> {
+    fn write_at(&mut self, data: &[u8], offset: usize) -> Result<(), DpeErrorCode> {
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::MailboxRam;
+    use dpe::response::{DpeErrorCode, RespBufRead, RespBufWrite};
+    use zerocopy::transmute;
+
+    #[test]
+    fn test_respbuf_read() {
+        let mut mem = [0xdeadbeef, 0xfeedface, 0xabadcafe];
+        let sram = MailboxRam {
+            mem: mem.as_mut_slice(),
+        };
+
+        let mut data = [0u8; 8];
+        let result = sram.read_at(data.as_mut_slice(), 0);
+        assert!(result.is_ok());
+        let buf: [u32; 2] = transmute!(data);
+        assert_eq!(&buf, &[0xdeadbeef, 0xfeedface]);
+
+        let mut data = [0u8; 8];
+        let result = sram.read_at(data.as_mut_slice(), 3);
+        assert!(result.is_ok());
+        let buf: [u32; 2] = transmute!(data);
+        assert_eq!(&buf, &[0xedfacede, 0xadcafefe]);
+
+        let mut data = [0u8; 5];
+        let result = sram.read_at(data.as_mut_slice(), 0);
+        assert!(result.is_ok());
+        assert_eq!(&data, &[0xef, 0xbe, 0xad, 0xde, 0xce]);
+
+        let mut data = [0u8; 3];
+        let result = sram.read_at(data.as_mut_slice(), 4);
+        assert!(result.is_ok());
+        assert_eq!(&data, &[0xce, 0xfa, 0xed]);
+    }
+
+    #[test]
+    fn test_respbuf_read_invalid_cases() {
+        let mut mem = [0xdeadbeef, 0xfeedface, 0xabadcafe];
+        let sram = MailboxRam {
+            mem: mem.as_mut_slice(),
+        };
+
+        let mut data = [0u8; 50];
+        let result = sram.read_at(data.as_mut_slice(), 0);
+        assert_eq!(result, Err(DpeErrorCode::InvalidResponseBuf));
+
+        let mut data = [0u8; 8];
+        let result = sram.read_at(data.as_mut_slice(), 9999);
+        assert_eq!(result, Err(DpeErrorCode::InvalidResponseBuf));
+
+        let result = sram.read_at(data.as_mut_slice(), 10);
+        assert_eq!(result, Err(DpeErrorCode::InvalidResponseBuf));
     }
 }
