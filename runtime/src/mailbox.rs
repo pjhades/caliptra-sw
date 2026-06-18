@@ -249,7 +249,7 @@ impl RespBufRead for MailboxRam<'_> {
             let word = self.mem[word_idx];
             data.get_mut(bytes_read..bytes_read + Self::WORD_SIZE)
                 .ok_or(DpeErrorCode::InvalidResponseBuf)?
-                .copy_from_slice(word.to_le_bytes().as_slice());
+                .copy_from_slice(&word.to_le_bytes());
             bytes_read += Self::WORD_SIZE;
             word_idx += 1;
         }
@@ -268,6 +268,50 @@ impl RespBufRead for MailboxRam<'_> {
 
 impl RespBufWrite for MailboxRam<'_> {
     fn write_at(&mut self, data: &[u8], offset: usize) -> Result<(), DpeErrorCode> {
+        if offset > self.byte_len() || self.byte_len() - offset < data.len() {
+            return Err(DpeErrorCode::InvalidResponseBuf);
+        }
+
+        let mut bytes_written = 0;
+        let aligned_offset = offset.next_multiple_of(Self::WORD_ALIGN);
+        let aligned_word_idx = aligned_offset / Self::WORD_SIZE;
+
+        if aligned_offset != offset {
+            let word_idx = aligned_word_idx - 1;
+            let byte_idx = offset - word_idx * Self::WORD_SIZE;
+            let mut bytes = self.mem[word_idx].to_le_bytes();
+            let size = Self::WORD_SIZE - byte_idx;
+
+            bytes
+                .get_mut(byte_idx..)
+                .ok_or(DpeErrorCode::InvalidResponseBuf)?
+                .copy_from_slice(&data[..size]);
+
+            self.mem[word_idx] = u32::from_le_bytes(bytes);
+            bytes_written += size;
+        }
+
+        let mut word_idx = aligned_word_idx;
+        while bytes_written + Self::WORD_SIZE < data.len() {
+            let mut bytes = self.mem[word_idx].to_le_bytes();
+            bytes
+                .as_mut_slice()
+                .copy_from_slice(&data[bytes_written..bytes_written + Self::WORD_SIZE]);
+            self.mem[word_idx] = u32::from_le_bytes(bytes);
+            bytes_written += Self::WORD_SIZE;
+            word_idx += 1;
+        }
+
+        let remaining_size = data.len() - bytes_written;
+        if remaining_size > 0 {
+            let mut bytes = self.mem[word_idx].to_le_bytes();
+            bytes
+                .get_mut(..remaining_size)
+                .ok_or(DpeErrorCode::InvalidResponseBuf)?
+                .copy_from_slice(&data[bytes_written..bytes_written + remaining_size]);
+            self.mem[word_idx] = u32::from_le_bytes(bytes);
+        }
+
         Ok(())
     }
 }
@@ -286,26 +330,31 @@ mod tests {
         };
 
         let mut data = [0u8; 8];
-        let result = sram.read_at(data.as_mut_slice(), 0);
+        let result = sram.read_at(&mut data, 0);
         assert!(result.is_ok());
         let buf: [u32; 2] = transmute!(data);
         assert_eq!(&buf, &[0xdeadbeef, 0xfeedface]);
 
         let mut data = [0u8; 8];
-        let result = sram.read_at(data.as_mut_slice(), 3);
+        let result = sram.read_at(&mut data, 3);
         assert!(result.is_ok());
         let buf: [u32; 2] = transmute!(data);
         assert_eq!(&buf, &[0xedfacede, 0xadcafefe]);
 
         let mut data = [0u8; 5];
-        let result = sram.read_at(data.as_mut_slice(), 0);
+        let result = sram.read_at(&mut data, 0);
         assert!(result.is_ok());
         assert_eq!(&data, &[0xef, 0xbe, 0xad, 0xde, 0xce]);
 
         let mut data = [0u8; 3];
-        let result = sram.read_at(data.as_mut_slice(), 4);
+        let result = sram.read_at(&mut data, 4);
         assert!(result.is_ok());
         assert_eq!(&data, &[0xce, 0xfa, 0xed]);
+
+        let mut data = [0u8; 5];
+        let result = sram.read_at(&mut data, 3);
+        assert!(result.is_ok());
+        assert_eq!(&data, &[0xde, 0xce, 0xfa, 0xed, 0xfe]);
     }
 
     #[test]
@@ -325,5 +374,42 @@ mod tests {
 
         let result = sram.read_at(data.as_mut_slice(), 10);
         assert_eq!(result, Err(DpeErrorCode::InvalidResponseBuf));
+    }
+
+    #[test]
+    fn test_respbuf_write() {
+        let mut mem = [0; 4];
+        let mut sram = MailboxRam {
+            mem: mem.as_mut_slice(),
+        };
+
+        let data = 0xdeadbeef_feedface_u64.to_le_bytes();
+
+        let result = sram.write_at(&data, 0);
+        assert!(result.is_ok());
+        assert_eq!(sram.mem, &[0xfeedface, 0xdeadbeef, 0, 0]);
+
+        sram.mem.fill(0);
+        let result = sram.write_at(&data, 3);
+        assert!(result.is_ok());
+        assert_eq!(sram.mem, &[0xce000000, 0xeffeedfa, 0x00deadbe, 0]);
+
+        sram.mem.fill(0);
+        let data = 0xaabbcc_u32.to_le_bytes();
+        let result = sram.write_at(&data, 4);
+        assert!(result.is_ok());
+        assert_eq!(sram.mem, &[0, 0x00aabbcc, 0, 0]);
+
+        sram.mem.fill(0);
+        let data = 0xee_deadbeef_u64.to_le_bytes();
+        let result = sram.write_at(&data, 4);
+        assert!(result.is_ok());
+        assert_eq!(sram.mem, &[0, 0xdeadbeef, 0x000000ee, 0]);
+
+        sram.mem.fill(0);
+        let data = 0xaabbcc_deadbeef_u64.to_le_bytes();
+        let result = sram.write_at(&data, 1);
+        assert!(result.is_ok());
+        assert_eq!(sram.mem, &[0xadbeef00, 0xaabbccde, 0, 0]);
     }
 }
