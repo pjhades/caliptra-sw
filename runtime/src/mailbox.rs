@@ -372,7 +372,7 @@ mod tests {
         let result = sram.read_at(data.as_mut_slice(), 9999);
         assert_eq!(result, Err(DpeErrorCode::InvalidResponseBuf));
 
-        let result = sram.read_at(data.as_mut_slice(), 10);
+        let result = sram.read_at(data.as_mut_slice(), sram.byte_len() - 2);
         assert_eq!(result, Err(DpeErrorCode::InvalidResponseBuf));
     }
 
@@ -411,5 +411,25 @@ mod tests {
         let result = sram.write_at(&data, 1);
         assert!(result.is_ok());
         assert_eq!(sram.mem, &[0xadbeef00, 0xaabbccde, 0, 0]);
+    }
+
+    #[test]
+    fn test_respbuf_write_invalid_cases() {
+        let mut mem = [0; 4];
+        let mut sram = MailboxRam {
+            mem: mem.as_mut_slice(),
+        };
+
+        let data = [0xa5; 100];
+        let result = sram.write_at(&data, 0);
+        assert_eq!(result, Err(DpeErrorCode::InvalidResponseBuf));
+
+        let data = 0xdeadbeef_u32.to_le_bytes();
+        let result = sram.write_at(&data, 9999);
+        assert_eq!(result, Err(DpeErrorCode::InvalidResponseBuf));
+
+        let data = 0xdeadbeef_feedface_u64.to_le_bytes();
+        let result = sram.write_at(&data, sram.byte_len() - 2);
+        assert_eq!(result, Err(DpeErrorCode::InvalidResponseBuf));
     }
 }
