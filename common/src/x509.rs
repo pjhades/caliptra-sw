@@ -53,6 +53,30 @@ impl X509 {
         Ok(digest[..20].try_into().unwrap())
     }
 
+    /// Get Cert Serial Number
+    ///
+    /// # Arguments
+    ///
+    /// * `sha256`  - SHA-256 driver
+    /// * `pub_key` - Public Key
+    ///
+    /// # Returns
+    ///
+    /// `[u8; 20]` - X509 Serial Number
+    pub fn cert_sn(sha256: &mut Sha256, pub_key: &Ecc384PubKey) -> CaliptraResult<[u8; 20]> {
+        let data = pub_key.to_der();
+        let digest = sha256.digest(&data);
+        let mut digest: [u8; 32] = okref(&digest)?.into();
+
+        // Ensure the encoded integer is positive, and that the first octet
+        // is non-zero (otherwise it will be considered padding, and the integer
+        // will fail to parse if the MSB of the second octet is zero).
+        digest[0] &= !0x80;
+        digest[0] |= 0x04;
+
+        Ok(digest[..20].try_into().unwrap())
+    }
+
     /// Return the hex representation of the input `buf`
     ///
     /// # Arguments
