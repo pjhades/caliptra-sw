@@ -14,9 +14,8 @@ use zeroize::Zeroize;
 use caliptra_cfi_derive::cfi_impl_fn;
 use caliptra_common::{crypto::Ecc384KeyPair, keyids::KEY_ID_TMP};
 use caliptra_drivers::{
-    hmac384_kdf, okref, Array4x12, Array4x5, Array4x8, CaliptraResult, Ecc384PrivKeyIn,
-    Ecc384PrivKeyOut, Ecc384PubKey, Ecc384Result, Ecc384Signature, KeyId, KeyReadArgs, KeyUsage,
-    KeyWriteArgs, Sha256Alg,
+    hmac384_kdf, okref, Array4x12, Array4x5, CaliptraResult, Ecc384PrivKeyIn, Ecc384PrivKeyOut,
+    Ecc384PubKey, Ecc384Result, Ecc384Signature, KeyId, KeyReadArgs, KeyUsage, KeyWriteArgs,
 };
 
 pub trait Ecdsa384SignatureAdapter {
@@ -49,22 +48,6 @@ impl Crypto {
     /// * `Array4x5` - Digest
     pub fn _sha1_digest(env: &mut FmcEnv, data: &[u8]) -> CaliptraResult<Array4x5> {
         env.sha1.digest(data)
-    }
-
-    /// Calculate SHA2-256 Digest
-    ///
-    /// # Arguments
-    ///
-    /// * `env`   - Fmc Environment
-    /// * `data` - Input data to hash
-    ///
-    /// # Returns
-    ///
-    /// * `Array4x8` - Digest
-    #[cfg_attr(feature = "cfi", cfi_impl_fn)]
-    #[inline(always)]
-    pub fn sha256_digest(env: &mut FmcEnv, data: &[u8]) -> CaliptraResult<Array4x8> {
-        env.sha256.digest(data)
     }
 
     /// Calculate SHA2-384 Digest

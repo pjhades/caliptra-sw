@@ -22,7 +22,7 @@ use crate::rom_env::RomEnv;
 use caliptra_cfi_derive::cfi_impl_fn;
 use caliptra_cfi_lib::{cfi_assert, cfi_assert_bool, cfi_launder};
 use caliptra_common::keyids::{KEY_ID_FE, KEY_ID_IDEVID_PRIV_KEY, KEY_ID_ROM_FMC_CDI, KEY_ID_UDS};
-use caliptra_common::RomBootStatus::*;
+use caliptra_common::{RomBootStatus::*, X509 as X509Common};
 use caliptra_drivers::MAX_IDEVID_CSR_SIZE;
 use caliptra_drivers::*;
 use caliptra_x509::*;
@@ -75,7 +75,7 @@ impl InitDevIdLayer {
         // Generate the Subject Serial Number and Subject Key Identifier.
         // This information will be used by next DICE Layer while generating
         // certificates
-        let subj_sn = X509::subj_sn(env, &key_pair.pub_key)?;
+        let subj_sn = X509Common::subj_sn(&mut env.sha256, &key_pair.pub_key)?;
         report_boot_status(IDevIdSubjIdSnGenerationComplete.into());
 
         let subj_key_id = X509::idev_subj_key_id(env, &key_pair.pub_key)?;

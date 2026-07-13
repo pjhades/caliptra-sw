@@ -26,7 +26,7 @@ use caliptra_cfi_lib::{cfi_assert, cfi_assert_bool, cfi_launder};
 use caliptra_common::dice;
 use caliptra_common::keyids::{KEY_ID_FMC_PRIV_KEY, KEY_ID_ROM_FMC_CDI};
 use caliptra_common::pcr::PCR_ID_FMC_CURRENT;
-use caliptra_common::RomBootStatus::*;
+use caliptra_common::{RomBootStatus::*, X509 as X509Common};
 use caliptra_drivers::{okmutref, report_boot_status, Array4x12, CaliptraResult, KeyId};
 use caliptra_x509::{FmcAliasCertTbsEcc384, FmcAliasCertTbsEcc384Params};
 use zeroize::Zeroize;
@@ -65,10 +65,10 @@ impl FmcAliasLayer {
         //
         // This information will be used by next DICE Layer while generating
         // certificates
-        let subj_sn = X509::subj_sn(env, &key_pair.pub_key)?;
+        let subj_sn = X509Common::subj_sn(&mut env.sha256, &key_pair.pub_key)?;
         report_boot_status(FmcAliasSubjIdSnGenerationComplete.into());
 
-        let subj_key_id = X509::subj_key_id(env, &key_pair.pub_key)?;
+        let subj_key_id = X509Common::subj_key_id(&mut env.sha256, &key_pair.pub_key)?;
         report_boot_status(FmcAliasSubjKeyIdGenerationComplete.into());
 
         // Generate the output for next layer
@@ -180,7 +180,7 @@ impl FmcAliasLayer {
             subject_key_id: &output.subj_key_id,
             issuer_sn: input.auth_sn,
             authority_key_id: input.auth_key_id,
-            serial_number: &X509::cert_sn(env, pub_key)?,
+            serial_number: &X509Common::cert_sn(&mut env.sha256, pub_key)?,
             public_key: &pub_key.to_der(),
             tcb_info_fmc_tci: &(&env.data_vault.fmc_tci()).into(),
             tcb_info_device_info_hash: &fuse_info_digest.into(),

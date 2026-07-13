@@ -23,7 +23,7 @@ use crate::rom_env::RomEnv;
 use caliptra_cfi_derive::cfi_impl_fn;
 use caliptra_cfi_lib::{cfi_assert, cfi_assert_bool, cfi_launder};
 use caliptra_common::keyids::{KEY_ID_FE, KEY_ID_LDEVID_PRIV_KEY, KEY_ID_ROM_FMC_CDI};
-use caliptra_common::RomBootStatus::*;
+use caliptra_common::{RomBootStatus::*, X509 as X509Common};
 use caliptra_drivers::*;
 use caliptra_x509::*;
 use zeroize::Zeroize;
@@ -67,10 +67,10 @@ impl LocalDevIdLayer {
         //
         // This information will be used by the next DICE Layer while generating
         // certificates
-        let subj_sn = X509::subj_sn(env, &key_pair.pub_key)?;
+        let subj_sn = X509Common::subj_sn(&mut env.sha256, &key_pair.pub_key)?;
         report_boot_status(LDevIdSubjIdSnGenerationComplete.into());
 
-        let subj_key_id = X509::subj_key_id(env, &key_pair.pub_key)?;
+        let subj_key_id = X509Common::subj_key_id(&mut env.sha256, &key_pair.pub_key)?;
         report_boot_status(LDevIdSubjKeyIdGenerationComplete.into());
 
         // Generate the output for next layer
@@ -150,7 +150,7 @@ impl LocalDevIdLayer {
         let auth_pub_key = &input.auth_key_pair.pub_key;
         let pub_key = &output.subj_key_pair.pub_key;
 
-        let serial_number = X509::cert_sn(env, pub_key);
+        let serial_number = X509Common::cert_sn(&mut env.sha256, pub_key);
         let serial_number = okref(&serial_number)?;
 
         // CSR `To Be Signed` Parameters

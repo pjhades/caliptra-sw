@@ -5,7 +5,7 @@ use crate::flow::dice::DiceOutput;
 use crate::flow::x509::X509;
 use crate::fmc_env::FmcEnv;
 use crate::HandOff;
-use caliptra_common::{crypto::Ecc384KeyPair, dice};
+use caliptra_common::{crypto::Ecc384KeyPair, dice, X509 as X509Common};
 
 use crate::flow::crypto::Ecdsa384SignatureAdapter;
 
@@ -32,8 +32,8 @@ use caliptra_x509::Ecdsa384CsrBuilder;
 /// * `DiceInput` - DICE Layer Input
 fn dice_output_from_hand_off(env: &mut FmcEnv) -> CaliptraResult<DiceOutput> {
     let auth_pub = HandOff::fmc_pub_key(env);
-    let subj_sn = X509::subj_sn(env, &auth_pub)?;
-    let subj_key_id = X509::subj_key_id(env, &auth_pub)?;
+    let subj_sn = X509Common::subj_sn(&mut env.sha256, &auth_pub)?;
+    let subj_key_id = X509Common::subj_key_id(&mut env.sha256, &auth_pub)?;
     // Create initial output
     let output = DiceOutput {
         cdi: HandOff::fmc_cdi(env),

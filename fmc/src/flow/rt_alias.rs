@@ -25,6 +25,7 @@ use caliptra_common::cprintln;
 use caliptra_common::crypto::Ecc384KeyPair;
 use caliptra_common::keyids::{KEY_ID_RT_CDI, KEY_ID_RT_PRIV_KEY, KEY_ID_TMP};
 use caliptra_common::HexBytes;
+use caliptra_common::X509 as X509Common;
 use caliptra_drivers::{
     okref, report_boot_status, CaliptraError, CaliptraResult, Ecc384Result, KeyId, PersistentData,
     ResetReason,
@@ -67,10 +68,10 @@ impl RtAliasLayer {
         //
         // This information will be used by next DICE Layer while generating
         // certificates
-        let subj_sn = X509::subj_sn(env, &key_pair.pub_key)?;
+        let subj_sn = X509Common::subj_sn(&mut env.sha256, &key_pair.pub_key)?;
         report_boot_status(FmcBootStatus::RtAliasSubjIdSnGenerationComplete.into());
 
-        let subj_key_id = X509::subj_key_id(env, &key_pair.pub_key)?;
+        let subj_key_id = X509Common::subj_key_id(&mut env.sha256, &key_pair.pub_key)?;
         report_boot_status(FmcBootStatus::RtAliasSubjKeyIdGenerationComplete.into());
 
         // Generate the output for next layer
@@ -148,8 +149,8 @@ impl RtAliasLayer {
             }
         };
 
-        let auth_serial_number = X509::subj_sn(env, &auth_key_pair.pub_key)?;
-        let auth_key_id = X509::subj_key_id(env, &auth_key_pair.pub_key)?;
+        let auth_serial_number = X509Common::subj_sn(&mut env.sha256, &auth_key_pair.pub_key)?;
+        let auth_key_id = X509Common::subj_key_id(&mut env.sha256, &auth_key_pair.pub_key)?;
 
         let input = DiceInput {
             cdi: HandOff::fmc_cdi(env),
@@ -302,7 +303,7 @@ impl RtAliasLayer {
         let auth_pub_key = &input.auth_key_pair.pub_key;
         let pub_key = &output.subj_key_pair.pub_key;
 
-        let serial_number = &X509::cert_sn(env, pub_key)?;
+        let serial_number = &X509Common::cert_sn(&mut env.sha256, pub_key)?;
 
         let rt_tci: [u8; 48] = HandOff::rt_tci(env).into();
         let rt_svn = HandOff::rt_svn(env) as u8;

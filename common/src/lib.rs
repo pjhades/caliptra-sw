@@ -16,6 +16,7 @@ pub mod fips;
 pub mod keyids;
 pub mod verifier;
 pub mod wdt;
+pub mod x509;
 
 ///merge imports
 pub use hand_off::{
@@ -36,6 +37,7 @@ pub use caliptra_drivers::printer::Printer;
 pub use error_handler::handle_fatal_error;
 pub use fuse::{FuseLogEntry, FuseLogEntryId};
 pub use pcr::{PcrLogEntry, PcrLogEntryId, RT_FW_CURRENT_PCR, RT_FW_JOURNEY_PCR};
+pub use x509::X509;
 
 pub const FMC_ORG: u32 = 0x40000000;
 pub const FMC_SIZE: u32 = 22 * 1024;
