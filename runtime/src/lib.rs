@@ -32,8 +32,6 @@ pub mod handoff;
 mod hmac;
 pub mod info;
 mod invoke_dpe;
-#[cfg(feature = "mldsa_attestation")]
-mod invoke_dpe_mldsa;
 pub mod mbox_response_writer;
 mod pcr;
 mod populate_idev;

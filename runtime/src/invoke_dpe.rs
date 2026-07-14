@@ -200,3 +200,18 @@ pub fn invoke_dpe_cmd(
     let dpe = &mut DpeInstance::initialized(DpeProfile::P384Sha384);
     command.execute_serialized(dpe, env, locality, out)
 }
+
+#[cfg(feature = "mldsa_attestation")]
+pub struct InvokeDpeMldsa87Cmd;
+
+#[cfg(feature = "mldsa_attestation")]
+impl InvokeDpeMldsa87Cmd {
+    #[cfg_attr(feature = "cfi", cfi_impl_fn)]
+    #[inline(never)]
+    pub(crate) fn execute(_drivers: &mut Drivers) -> CaliptraResult<()> {
+        // TODO(PQC): create the ML-DSA DPE environment and execute the DPE
+        // command (CertifyKey, Sign, DeriveContext). Return
+        // RUNTIME_PQC_NOT_INITIALIZED when pqc_mode is disabled.
+        Err(CaliptraError::RUNTIME_UNIMPLEMENTED_COMMAND)
+    }
+}
