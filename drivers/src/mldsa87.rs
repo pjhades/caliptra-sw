@@ -151,6 +151,7 @@ impl Mldsa87 {
     /// * `seed` - 32-byte private seed
     /// * `mu` - Message digest to be signed
     /// * `sig` - Buffer that receives the encoded signature
+    #[inline(never)]
     pub fn sign_mu_deterministic(
         seed: &Mldsa87Seed,
         mu: &Mldsa87Mu,
