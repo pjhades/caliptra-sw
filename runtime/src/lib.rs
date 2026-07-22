@@ -512,8 +512,14 @@ fn mldsa_dpe_env(
     drivers: &mut Drivers,
     dmtf_device_info: Option<ArrayVec<u8, { MAX_OTHER_NAME_SIZE }>>,
     ueid: Option<[u8; 17]>,
+    need_pub_key_digest: bool,
 ) -> CaliptraResult<CaliptraDpeEnv<'_>> {
-    let (_, _, digest) = drivers.compute_mldsa_key_material()?;
+    let digest = if need_pub_key_digest {
+        let (_, _, digest) = drivers.compute_mldsa_key_material()?;
+        Some(digest)
+    } else {
+        None
+    };
     let pdata = drivers.persistent_data.get_mut();
     let pq_devid_cdi = pdata.pq_devid_cdi()?;
     let crypto = DpeCrypto::new_mldsa87(
@@ -532,7 +538,7 @@ fn mldsa_dpe_env(
         platform: DpePlatform::new(
             CaliptraDpeProfile::Mldsa,
             pl0_pauser,
-            Some(digest),
+            digest,
             &drivers.mldsa_cert_chain,
             nb,
             nf,

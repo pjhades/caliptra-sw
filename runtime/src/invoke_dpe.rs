@@ -84,7 +84,15 @@ pub fn invoke_dpe_cmd(
     let mut env = match profile {
         CaliptraDpeProfile::Ecc384 => ec_dpe_env(drivers, dmtf_device_info, ueid),
         #[cfg(feature = "mldsa_attestation")]
-        CaliptraDpeProfile::Mldsa => mldsa_dpe_env(drivers, dmtf_device_info, ueid),
+        CaliptraDpeProfile::Mldsa => match command {
+            // The hash of the public key is only needed by these two DPE commands,
+            // so don't bother deriving them for other commands when creating the
+            // DPE environment.
+            &Command::DeriveContext(_) | &Command::CertifyKey(_) => {
+                mldsa_dpe_env(drivers, dmtf_device_info, ueid, true)
+            }
+            _ => mldsa_dpe_env(drivers, dmtf_device_info, ueid, false),
+        },
     };
     let env = match env.as_mut() {
         Ok(r) => r,
