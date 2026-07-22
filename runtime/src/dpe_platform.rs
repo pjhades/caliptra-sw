@@ -30,7 +30,7 @@ use crate::{subject_alt_name::AddSubjectAltNameCmd, CaliptraDpeProfile};
 pub struct DpePlatform<'a> {
     profile: CaliptraDpeProfile,
     auto_init_locality: u32,
-    hashed_rt_pub_key: Digest,
+    hashed_rt_pub_key: Option<Digest>,
     cert_chain: &'a [u8],
     not_before: NotBefore,
     not_after: NotAfter,
@@ -46,7 +46,7 @@ impl<'a> DpePlatform<'a> {
     pub fn new(
         profile: CaliptraDpeProfile,
         auto_init_locality: u32,
-        hashed_rt_pub_key: Digest,
+        hashed_rt_pub_key: Option<Digest>,
         cert_chain: &'a [u8],
         not_before: NotBefore,
         not_after: NotAfter,
@@ -117,6 +117,8 @@ impl Platform for DpePlatform<'_> {
         // Caliptra RDN SerialNumber field is always a Sha256 hash
         let mut serial = [0u8; 64];
         self.hashed_rt_pub_key
+            .as_ref()
+            .ok_or(PlatformError::IssuerNameError(0))?
             .write_hex_str(&mut serial)
             .map_err(|e| PlatformError::IssuerNameError(e.get_error_detail().unwrap_or(0)))?;
 
@@ -135,7 +137,11 @@ impl Platform for DpePlatform<'_> {
     /// SubjectKeyIdentifier extension in the RT alias certificate.
     fn get_signer_identifier(&mut self) -> Result<SignerIdentifier, PlatformError> {
         let mut ski = [0u8; MAX_KEY_IDENTIFIER_SIZE];
-        let hashed_rt_pub_key = self.hashed_rt_pub_key.as_slice();
+        let digest = self
+            .hashed_rt_pub_key
+            .as_ref()
+            .ok_or(PlatformError::SubjectKeyIdentifierError(0))?;
+        let hashed_rt_pub_key = digest.as_slice();
         if hashed_rt_pub_key.len() < MAX_KEY_IDENTIFIER_SIZE {
             return Err(PlatformError::SubjectKeyIdentifierError(0));
         }
@@ -151,7 +157,11 @@ impl Platform for DpePlatform<'_> {
         &mut self,
         out: &mut [u8; MAX_KEY_IDENTIFIER_SIZE],
     ) -> Result<(), PlatformError> {
-        let hashed_rt_pub_key = self.hashed_rt_pub_key.as_slice();
+        let digest = self
+            .hashed_rt_pub_key
+            .as_ref()
+            .ok_or(PlatformError::IssuerKeyIdentifierError(0))?;
+        let hashed_rt_pub_key = digest.as_slice();
         if hashed_rt_pub_key.len() < MAX_KEY_IDENTIFIER_SIZE {
             return Err(PlatformError::IssuerKeyIdentifierError(0));
         }

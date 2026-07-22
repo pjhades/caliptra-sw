@@ -527,7 +527,7 @@ impl Drivers {
             platform: DpePlatform::new(
                 CaliptraDpeProfile::Ecc384,
                 CALIPTRA_LOCALITY,
-                hashed_rt_pub_key,
+                Some(hashed_rt_pub_key),
                 &drivers.cert_chain,
                 nb,
                 nf,

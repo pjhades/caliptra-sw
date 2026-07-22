@@ -495,7 +495,7 @@ fn ec_dpe_env(
         platform: DpePlatform::new(
             CaliptraDpeProfile::Ecc384,
             pl0_pauser,
-            hashed_rt_pub_key,
+            Some(hashed_rt_pub_key),
             &drivers.cert_chain,
             nb,
             nf,
@@ -532,7 +532,7 @@ fn mldsa_dpe_env(
         platform: DpePlatform::new(
             CaliptraDpeProfile::Mldsa,
             pl0_pauser,
-            digest,
+            Some(digest),
             &drivers.mldsa_cert_chain,
             nb,
             nf,
