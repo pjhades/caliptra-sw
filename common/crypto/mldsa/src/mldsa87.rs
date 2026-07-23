@@ -611,63 +611,33 @@ fn matrix87_expand_mul(out: &mut Vector8, rho: &[u8; K_RHO_BYTES], a: &Vector7) 
     }
 }
 
-fn expand_s1_short(s1: &mut Vector7, sigma: &[u8; K_SIGMA_BYTES]) {
+fn expand_s1_or_s2_short(v: &mut [Scalar], sigma: &[u8; K_SIGMA_BYTES], seed_index: u8) {
     let mut derived_seed = [0u8; K_SIGMA_BYTES + 2];
     derived_seed[..K_SIGMA_BYTES].copy_from_slice(sigma);
-    derived_seed[K_SIGMA_BYTES] = 0;
+    derived_seed[K_SIGMA_BYTES] = seed_index;
     derived_seed[K_SIGMA_BYTES + 1] = 0;
-    for i in 0..7 {
-        scalar_uniform_2(&mut s1.v[i], &derived_seed);
+    for s in v {
+        scalar_uniform_2(s, &derived_seed);
         derived_seed[K_SIGMA_BYTES] = derived_seed[K_SIGMA_BYTES].wrapping_add(1);
     }
 }
 
-fn expand_s2_short(s2: &mut Vector8, sigma: &[u8; K_SIGMA_BYTES]) {
-    let mut derived_seed = [0u8; K_SIGMA_BYTES + 2];
-    derived_seed[..K_SIGMA_BYTES].copy_from_slice(sigma);
-    derived_seed[K_SIGMA_BYTES] = 7;
-    derived_seed[K_SIGMA_BYTES + 1] = 0;
-    for i in 0..8 {
-        scalar_uniform_2(&mut s2.v[i], &derived_seed);
-        derived_seed[K_SIGMA_BYTES] = derived_seed[K_SIGMA_BYTES].wrapping_add(1);
-    }
-}
-
-fn expand_s1_ntt_mul_scalar(
+fn expand_s1_or_s2_ntt_mul_scalar(
     out: &mut Scalar,
     i: usize,
     sigma: &[u8; K_SIGMA_BYTES],
     sk_opt: Option<&[u8; MLDSA87_PRIVATE_KEY_BYTES]>,
+    sk_off: usize,
+    seed_index: usize,
     rhs: &Scalar,
 ) {
     if let Some(sk) = sk_opt {
-        let off = SK_S1_OFF + i * SK_S_PACK_BYTES;
+        let off = sk_off + i * SK_S_PACK_BYTES;
         unpack_scalar_bits(out, &sk[off..off + SK_S_PACK_BYTES], 3, 2);
     } else {
         let mut derived_seed = [0u8; K_SIGMA_BYTES + 2];
         derived_seed[..K_SIGMA_BYTES].copy_from_slice(sigma);
-        derived_seed[K_SIGMA_BYTES] = i as u8;
-        derived_seed[K_SIGMA_BYTES + 1] = 0;
-        scalar_uniform_2(out, &derived_seed);
-    }
-    scalar_ntt(out);
-    scalar_mul_assign(out, rhs);
-}
-
-fn expand_s2_ntt_mul_scalar(
-    out: &mut Scalar,
-    i: usize,
-    sigma: &[u8; K_SIGMA_BYTES],
-    sk_opt: Option<&[u8; MLDSA87_PRIVATE_KEY_BYTES]>,
-    rhs: &Scalar,
-) {
-    if let Some(sk) = sk_opt {
-        let off = SK_S2_OFF + i * SK_S_PACK_BYTES;
-        unpack_scalar_bits(out, &sk[off..off + SK_S_PACK_BYTES], 3, 2);
-    } else {
-        let mut derived_seed = [0u8; K_SIGMA_BYTES + 2];
-        derived_seed[..K_SIGMA_BYTES].copy_from_slice(sigma);
-        derived_seed[K_SIGMA_BYTES] = (i + 7) as u8;
+        derived_seed[K_SIGMA_BYTES] = seed_index as u8;
         derived_seed[K_SIGMA_BYTES + 1] = 0;
         scalar_uniform_2(out, &derived_seed);
     }
@@ -681,7 +651,6 @@ fn matrix87_expand_mul_mask(
     rho_prime: &[u8; K_RHO_PRIME_BYTES],
     kappa: usize,
 ) {
-    vector8_zero(out);
     let mut derived_seed = [0u8; K_RHO_BYTES + 2];
     derived_seed[..K_RHO_BYTES].copy_from_slice(rho);
     let mut mask_seed = [0u8; K_RHO_PRIME_BYTES + 2];
@@ -694,11 +663,11 @@ fn matrix87_expand_mul_mask(
         mask_seed[K_RHO_PRIME_BYTES + 1] = ((index >> 8) & 0xFF) as u8;
         scalar_sample_mask(&mut y_j, &mask_seed);
         scalar_ntt(&mut y_j);
+        derived_seed[K_RHO_BYTES] = j as u8;
 
         for (i, out_scalar) in out.v.iter_mut().enumerate() {
             let mut m_ij = Scalar::default();
             derived_seed[K_RHO_BYTES + 1] = i as u8;
-            derived_seed[K_RHO_BYTES] = j as u8;
             scalar_from_keccak_vartime(&mut m_ij, &derived_seed);
             scalar_mul_add_assign(out_scalar, &m_ij, &y_j);
         }
@@ -849,7 +818,7 @@ fn generate_key_internal(
         KeygenState::V7(v) => v,
         _ => unreachable!(),
     };
-    expand_s1_short(s1_ntt, sigma.try_into().unwrap());
+    expand_s1_or_s2_short(&mut s1_ntt.v, sigma.try_into().unwrap(), 0);
 
     // s1 is in normal domain here (before its NTT for the matrix multiply).
     if let Some(sk) = out_encoded_private_key.as_mut() {
@@ -869,7 +838,7 @@ fn generate_key_internal(
         KeygenState::V8(v) => v,
         _ => unreachable!(),
     };
-    expand_s2_short(s2_ntt, sigma.try_into().unwrap());
+    expand_s1_or_s2_short(&mut s2_ntt.v, sigma.try_into().unwrap(), 7);
 
     if let Some(sk) = out_encoded_private_key.as_mut() {
         for (i, scalar) in s2_ntt.v.iter().enumerate() {
@@ -1014,7 +983,15 @@ fn sign_internal_with_mu(
 
         for i in 0..7 {
             let mut cs_i = Scalar::default();
-            expand_s1_ntt_mul_scalar(&mut cs_i, i, &priv_key.sigma, sk_opt, &c_ntt);
+            expand_s1_or_s2_ntt_mul_scalar(
+                &mut cs_i,
+                i,
+                &priv_key.sigma,
+                sk_opt,
+                SK_S1_OFF,
+                i,
+                &c_ntt,
+            );
             scalar_inverse_ntt(&mut cs_i);
 
             let mut z_i = Scalar::default();
@@ -1037,7 +1014,15 @@ fn sign_internal_with_mu(
 
         for i in 0..8 {
             let mut cs_i = Scalar::default();
-            expand_s2_ntt_mul_scalar(&mut cs_i, i, &priv_key.sigma, sk_opt, &c_ntt);
+            expand_s1_or_s2_ntt_mul_scalar(
+                &mut cs_i,
+                i,
+                &priv_key.sigma,
+                sk_opt,
+                SK_S2_OFF,
+                i + 7,
+                &c_ntt,
+            );
             scalar_inverse_ntt(&mut cs_i);
 
             let mut r0_i = Scalar::default();
