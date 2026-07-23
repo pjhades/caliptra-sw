@@ -538,33 +538,46 @@ pub fn run_pqc_command_suite(
         ),
     ));
 
-    // GET_PQ_CSR — header-only request; runs the full ML-DSA-87 keygen+sign+CSR path.
-    results.push((
-        "GET_PQ_CSR",
-        measure_hdr(sampler, model, CommandId::GET_PQ_CSR),
-    ));
+    // GET_PQ_CSR — header-only request; runs the full ML-DSA-87 keygen+sign+CSR
+    // path. Averaging multiple runs to eliminate single-sample variance.
+    {
+        const SAMPLE_COUNT: usize = 100;
+        let mean = (0..SAMPLE_COUNT)
+            .map(|_| measure_hdr(sampler, model, CommandId::GET_PQ_CSR))
+            .sum::<u64>()
+            / SAMPLE_COUNT as u64;
+        results.push(("GET_PQ_CSR", mean));
+    }
 
     // CERTIFY_KEY_EXTENDED_MLDSA87 — certify the default DPE context under the
-    // ML-DSA-87 (PQ.DevID) identity (leaf keygen + alias signing).
-    let certify_key_cmd = CertifyKeyMldsa87Cmd {
-        handle: ContextHandle::default(),
-        flags: CertifyKeyFlags::empty(),
-        format: CertifyKeyCommand::FORMAT_X509,
-        label: TEST_LABEL,
-    };
-    results.push((
-        "CERTIFY_KEY_EXTENDED_MLDSA87",
-        measure_req(
-            sampler,
-            model,
-            CommandId::CERTIFY_KEY_EXTENDED_MLDSA87,
-            MailboxReq::CertifyKeyExtendedMldsa87(CertifyKeyExtendedMldsa87Req {
-                hdr: MailboxReqHeader { chksum: 0 },
-                flags: CertifyKeyExtendedFlags::empty(),
-                certify_key_req: certify_key_cmd.as_bytes().try_into().unwrap(),
-            }),
-        ),
-    ));
+    // ML-DSA-87 (PQ.DevID) identity (leaf keygen + alias signing). Averaging
+    // multiple runs to eliminate single-sample variane.
+    {
+        const SAMPLE_COUNT: usize = 100;
+        let mut mldsa_certify_samples = Vec::with_capacity(SAMPLE_COUNT);
+        for i in 0u8..SAMPLE_COUNT as u8 {
+            let mut label = TEST_LABEL;
+            label[0] = i;
+            let certify_key_cmd = CertifyKeyMldsa87Cmd {
+                handle: ContextHandle::default(),
+                flags: CertifyKeyFlags::empty(),
+                format: CertifyKeyCommand::FORMAT_X509,
+                label,
+            };
+            mldsa_certify_samples.push(measure_req(
+                sampler,
+                model,
+                CommandId::CERTIFY_KEY_EXTENDED_MLDSA87,
+                MailboxReq::CertifyKeyExtendedMldsa87(CertifyKeyExtendedMldsa87Req {
+                    hdr: MailboxReqHeader { chksum: 0 },
+                    flags: CertifyKeyExtendedFlags::empty(),
+                    certify_key_req: certify_key_cmd.as_bytes().try_into().unwrap(),
+                }),
+            ));
+        }
+        let mean = mldsa_certify_samples.iter().sum::<u64>() / SAMPLE_COUNT as u64;
+        results.push(("CERTIFY_KEY_EXTENDED_MLDSA87", mean));
+    }
 
     // MLDSA87_SIGNATURE_VERIFY — digest pulled from the SHA accelerator (same
     // pattern as ECDSA384_VERIFY / LMS_VERIFY). A real keypair+signature is used
