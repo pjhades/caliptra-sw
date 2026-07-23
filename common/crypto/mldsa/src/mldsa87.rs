@@ -611,6 +611,7 @@ fn matrix87_expand_mul(out: &mut Vector8, rho: &[u8; K_RHO_BYTES], a: &Vector7) 
     }
 }
 
+#[inline(never)]
 fn expand_s1_or_s2_short(v: &mut [Scalar], sigma: &[u8; K_SIGMA_BYTES], seed_index: u8) {
     let mut derived_seed = [0u8; K_SIGMA_BYTES + 2];
     derived_seed[..K_SIGMA_BYTES].copy_from_slice(sigma);
@@ -622,6 +623,7 @@ fn expand_s1_or_s2_short(v: &mut [Scalar], sigma: &[u8; K_SIGMA_BYTES], seed_ind
     }
 }
 
+#[inline(never)]
 fn expand_s1_or_s2_ntt_mul_scalar(
     out: &mut Scalar,
     i: usize,
