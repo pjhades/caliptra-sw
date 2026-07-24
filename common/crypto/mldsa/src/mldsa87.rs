@@ -966,7 +966,7 @@ fn sign_internal_with_mu(
     shake256.squeeze(&mut rho_prime);
 
     let mut kappa = 0;
-    loop {
+    'rejection_sample: loop {
         let mut tmp = Vector8::default();
         matrix87_expand_mul_mask(&mut tmp, &priv_key.rho, &rho_prime, kappa);
         vector8_inverse_ntt(&mut tmp);
@@ -1015,6 +1015,12 @@ fn sign_internal_with_mu(
 
             scalar_max(&mut z_max, &z_i);
 
+            // Check z_max and quit early
+            if ct_ge(z_max, GAMMA1.wrapping_sub(BETA)) != 0 {
+                kappa += 7;
+                continue 'rejection_sample;
+            }
+
             let out_slice = &mut out_encoded_signature
                 [2 * LAMBDA_BYTES + i * 640..2 * LAMBDA_BYTES + (i + 1) * 640];
             scalar_encode_signed_20_19(out_slice, &z_i);
@@ -1058,8 +1064,7 @@ fn sign_internal_with_mu(
             h_ones += scalar_count_ones(&tmp.v[i]);
         }
 
-        if (ct_ge(z_max, GAMMA1.wrapping_sub(BETA))
-            | ct_ge(r0_max, K_GAMMA_2.wrapping_sub(BETA))
+        if (ct_ge(r0_max, K_GAMMA_2.wrapping_sub(BETA))
             | ct_ge(ct0_max, K_GAMMA_2)
             | ct_lt(OMEGA as u32, h_ones as u32))
             != 0
