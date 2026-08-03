@@ -883,7 +883,7 @@ fn generate_key_internal(
         let mut chunk = [0u8; K_SCALAR_ENCODE_10_CHUNK_SIZE];
         shake256.absorb(rho);
         for i in 0..8 {
-            scalar_encode_10(&mut chunk, &t.v[i]);
+            scalar_encode_10(&mut chunk, &pub_key.t1.v[i]);
             shake256.absorb(&chunk);
         }
         shake256.squeeze(&mut tr);
