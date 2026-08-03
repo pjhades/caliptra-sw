@@ -849,8 +849,7 @@ fn generate_key_internal(
     let mut t = Vector8::default();
     matrix87_expand_mul(&mut t, rho.try_into().unwrap(), &priv_key.s1_ntt);
     vector8_inverse_ntt(&mut t);
-    let t_copy = t;
-    vector8_add(&mut t, &t_copy, &priv_key.s2_ntt);
+    vector8_add_assign(&mut t, &priv_key.s2_ntt);
 
     let rho_bytes: [u8; K_RHO_BYTES] = rho.try_into().unwrap();
     let mut pub_key = PublicKey {
@@ -874,7 +873,9 @@ fn generate_key_internal(
     vector8_ntt(&mut priv_key.s2_ntt);
     vector8_ntt(&mut priv_key.t0_ntt);
 
-    encode_public_key(out_encoded_public_key, &pub_key);
+    if let Some(out_encoded_pk) = out_encoded_public_key.as_mut() {
+        encode_public_key(out_encoded_pk, &pub_key);
+    }
 
     if out_encoded_private_key.is_some() || out_public_key_hash.is_some() {
         let mut tr = [0u8; K_TR_BYTES];
@@ -882,7 +883,7 @@ fn generate_key_internal(
         let mut chunk = [0u8; K_SCALAR_ENCODE_10_CHUNK_SIZE];
         shake256.absorb(rho);
         for i in 0..8 {
-            scalar_encode_10(&mut chunk, &t1.v[i]);
+            scalar_encode_10(&mut chunk, &t.v[i]);
             shake256.absorb(&chunk);
         }
         shake256.squeeze(&mut tr);
@@ -1094,14 +1095,13 @@ fn verify_internal_with_mu(
     let mut az_ntt = Vector8::default();
     matrix87_expand_mul(&mut az_ntt, &pub_key.rho, &sign.z);
 
-    let mut ct1_ntt = Vector8::default();
-    vector8_scale_power2_round(&mut ct1_ntt, &pub_key.t1);
+    let mut ct1_ntt = pub_key.t1;
+    vector8_scale_power2_round_assign(&mut ct1_ntt);
     vector8_ntt(&mut ct1_ntt);
     // Multiply each Scalar by c_ntt in place. Avoids the 8 KiB Vector8 copy
     // that vector8_mul_scalar would require: on stack-constrained targets pushes verify over budget
     for i in 0..8 {
-        let lhs = ct1_ntt.v[i];
-        scalar_mul(&mut ct1_ntt.v[i], &lhs, &c_ntt);
+        scalar_mul_assign(&mut ct1_ntt.v[i], &c_ntt);
     }
 
     let mut w1 = Vector8::default();
@@ -1430,7 +1430,8 @@ pub fn mldsa87_generate_sign_mu_deterministic(
     let mut priv_key = PrivateKey {
         rho: [0u8; K_RHO_BYTES],
         k: [0u8; K_K_BYTES],
-        sigma: [0u8; K_SIGMA_BYTES],
+        s1_ntt: Vector7::default(),
+        s2_ntt: Vector8::default(),
         t0_ntt: Vector8::default(),
     };
     let mut tr = [0u8; K_TR_BYTES];
@@ -1447,7 +1448,7 @@ pub fn mldsa87_generate_sign_mu_deterministic(
     shake256.squeeze(&mut mu);
 
     let randomizer = [0u8; MLDSA87_RANDOMIZER_BYTES];
-    sign_internal_with_mu(out_encoded_signature, &priv_key, &mu, &randomizer, None);
+    sign_internal_with_mu(out_encoded_signature, &priv_key, &mu, &randomizer);
     Ok(())
 }
 
