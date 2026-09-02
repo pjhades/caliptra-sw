@@ -82,7 +82,7 @@ pub use lms::{
     get_lmots_parameters, get_lms_parameters, HashValue, Lms, LmsResult, Sha192Digest,
     Sha256Digest, D_INTR, D_LEAF, D_MESG, D_PBLC,
 };
-pub use mailbox::{Mailbox, MailboxRecvTxn, MailboxSendTxn};
+pub use mailbox::{Mailbox, MailboxRecvTxn, MailboxSendTxn, MAX_MAILBOX_LEN};
 pub use mldsa87::{
     Mldsa87, Mldsa87Mu, Mldsa87PrivKey, Mldsa87PubKey, Mldsa87Result, Mldsa87Seed,
     Mldsa87Signature, MLDSA87_MU_BYTES, MLDSA87_PRIVATE_KEY_BYTES, MLDSA87_PRIVATE_SEED_BYTES,

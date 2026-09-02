@@ -9,7 +9,7 @@
 #[allow(unused)]
 use caliptra_test_harness::{self, println};
 
-use caliptra_drivers::{self, Mailbox};
+use caliptra_drivers::{self, Mailbox, MAX_MAILBOX_LEN};
 use caliptra_registers::mbox::MboxCsr;
 use zerocopy::IntoBytes;
 
@@ -101,6 +101,15 @@ extern "C" fn main() {
             // Test responding with 0 byte copy_response
             0xD000_0000 => {
                 txn.send_response(&[]).unwrap();
+            }
+            // Test responding with more than MAX_MAILBOX_LEN bytes
+            0xE000_0000 => {
+                if txn
+                    .send_response(&[0x5A; MAX_MAILBOX_LEN as usize + 1])
+                    .is_err()
+                {
+                    txn.complete(false).unwrap();
+                }
             }
             // Test transaction dropped immediately
             _ => {}

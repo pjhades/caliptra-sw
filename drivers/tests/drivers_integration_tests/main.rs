@@ -612,7 +612,7 @@ fn test_mailbox_soc_to_uc() {
         assert_eq!(resp, [0x98, 0x76]);
     }
 
-    // Test 9 byte reponse
+    // Test 9 byte response
     {
         let resp = model.mailbox_execute(0xC000_0000, &[]).unwrap().unwrap();
         model
@@ -621,7 +621,7 @@ fn test_mailbox_soc_to_uc() {
         assert_eq!(resp, [0x0A, 0x0B, 0x0C, 0x0D, 0x05, 0x04, 0x03, 0x02, 0x01]);
     }
 
-    // Test reponse with 0 bytes (still calls copy_response)
+    // Test response with 0 bytes (still calls copy_response)
     {
         let resp = model.mailbox_execute(0xD000_0000, &[]).unwrap().unwrap();
         model
@@ -629,6 +629,25 @@ fn test_mailbox_soc_to_uc() {
             .unwrap();
         assert_eq!(resp, [] as [u8; 0]);
     }
+
+    // Test response with more than MAX_MAILBOX_LEN bytes
+    {
+        let resp = model.mailbox_execute(0xE000_0000, &[]);
+        model
+            .step_until_output_and_take("cmd: 0xe0000000\n")
+            .unwrap();
+        assert_eq!(resp, Err(ModelError::MailboxCmdFailed(0)));
+    }
+
+    // Test response with 0 bytes again, the mailbox should still be usable
+    {
+        let resp = model.mailbox_execute(0xD000_0000, &[]).unwrap().unwrap();
+        model
+            .step_until_output_and_take("cmd: 0xd0000000\n")
+            .unwrap();
+        assert_eq!(resp, [] as [u8; 0]);
+    }
+
     // Ensure there isn't any unexpected output
     for _i in 0..100000 {
         model.step();

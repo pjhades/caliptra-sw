@@ -39,7 +39,7 @@ pub struct Mailbox {
     mbox: MboxCsr,
 }
 
-const MAX_MAILBOX_LEN: u32 = 128 * 1024;
+pub const MAX_MAILBOX_LEN: u32 = 128 * 1024;
 
 impl Mailbox {
     pub fn new(mbox: MboxCsr) -> Self {
@@ -487,7 +487,10 @@ impl MailboxRecvTxn<'_> {
     ///
     /// Does not take ownership of self, unlike complete()
     pub fn complete(&mut self, success: bool) -> CaliptraResult<()> {
-        if self.state != MailboxOpState::Execute && self.state != MailboxOpState::RdyForData {
+        if self.state != MailboxOpState::Execute
+            && self.state != MailboxOpState::RdyForData
+            && self.state != MailboxOpState::RdyForDlen
+        {
             return Err(CaliptraError::DRIVER_MAILBOX_INVALID_STATE);
         }
         let status = if success {
