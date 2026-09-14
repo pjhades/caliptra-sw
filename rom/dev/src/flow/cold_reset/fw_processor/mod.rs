@@ -63,6 +63,7 @@ mod report_hek_metadata;
 mod ri_download_firmware;
 mod self_test;
 mod shutdown;
+#[cfg(not(any(hw_rev = "2.0", hw_rev = "2.1")))]
 mod stash_measurement;
 mod version;
 mod zeroize_uds_fe;
@@ -81,6 +82,7 @@ use report_hek_metadata::OcpLockReportHekMetadataCmd;
 use ri_download_firmware::RiDownloadFirmwareCmd;
 use self_test::{SelfTestGetResultsCmd, SelfTestStartCmd};
 use shutdown::ShutdownCmd;
+#[cfg(not(any(hw_rev = "2.0", hw_rev = "2.1")))]
 use stash_measurement::StashMeasurementCmd;
 use version::VersionCmd;
 use zeroize_uds_fe::ZeroizeUdsFeCmd;
@@ -272,6 +274,7 @@ impl FirmwareProcessor {
     /// This prevents a race condition where the SoC reads FW_ERROR_NON_FATAL
     /// immediately after the mailbox transaction fails,
     /// but before caliptra has set the FW_ERROR_NON_FATAL register.
+    #[cfg_attr(not(any(hw_rev = "2.0", hw_rev = "2.1")), allow(unused_variables))]
     fn process_mailbox_commands<'a>(
         soc_ifc: &mut SocIfc,
         mbox: &'a mut Mailbox,
@@ -401,6 +404,7 @@ impl FirmwareProcessor {
                     CommandId::MLDSA87_SIGNATURE_VERIFY => {
                         MldsaVerifyCmd::execute(cmd_bytes, env.mldsa87, resp)?
                     }
+                    #[cfg(not(any(hw_rev = "2.0", hw_rev = "2.1")))]
                     CommandId::STASH_MEASUREMENT => {
                         if persistent_data.rom.fht.meas_log_index == MEASUREMENT_MAX_COUNT as u32 {
                             cprintln!("[fwproc] Max # of measurements received.");
