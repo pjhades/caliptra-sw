@@ -43,6 +43,7 @@ static CALIPTRA_RDL_FILES: &[&str] = &[
     "src/soc_ifc/rtl/sha512_acc_csr.rdl",
     "src/uart/data/uart.rdl",
     "src/sha3/rtl/kmac_reg.rdl",
+    "src/entropy_combiner/rtl/entropy_combiner_reg.rdl",
 ];
 
 static CALIPTRA_INTEGRATION_RDL_FILE: &str = "src/integration/rtl/caliptra_reg.rdl";
