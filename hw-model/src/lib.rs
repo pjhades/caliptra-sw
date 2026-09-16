@@ -26,9 +26,7 @@ use zerocopy::{FromBytes, FromZeros, IntoBytes};
 use caliptra_emu_periph::MailboxRequester;
 use caliptra_registers::mbox;
 use caliptra_registers::mbox::enums::{MboxFsmE, MboxStatusE};
-use caliptra_registers::soc_ifc::regs::{
-    CptraItrngEntropyConfig0WriteVal, CptraItrngEntropyConfig1WriteVal,
-};
+use caliptra_registers::soc_ifc::regs::{EntropyConfig0WriteVal, EntropyConfig1WriteVal};
 
 use rand::{rngs::StdRng, SeedableRng};
 use sha2::Digest;
@@ -443,8 +441,8 @@ fn trace_path_or_env(trace_path: Option<PathBuf>) -> Option<PathBuf> {
 pub struct BootParams<'a> {
     pub fw_image: Option<&'a [u8]>,
     pub initial_dbg_manuf_service_reg: u32,
-    pub initial_repcnt_thresh_reg: Option<CptraItrngEntropyConfig1WriteVal>,
-    pub initial_adaptp_thresh_reg: Option<CptraItrngEntropyConfig0WriteVal>,
+    pub initial_repcnt_thresh_reg: Option<EntropyConfig1WriteVal>,
+    pub initial_adaptp_thresh_reg: Option<EntropyConfig0WriteVal>,
     pub initial_ss_strap_generic_2: Option<u32>,
     pub initial_ss_strap_generic_3: Option<u32>,
     pub valid_axi_user: Vec<u32>,
