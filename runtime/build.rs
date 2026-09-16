@@ -331,6 +331,17 @@ fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     generate_attested_csr_templates(&out_dir);
 
+    let rev = std::env::var("CALIPTRA_HW_REV").unwrap_or_else(|_| "latest".to_string());
+    match rev.as_str() {
+        "latest" => println!("cargo::rustc-cfg=hw_rev=\"latest\""),
+        "2.0" => println!("cargo::rustc-cfg=hw_rev=\"2.0\""),
+        "2.1" => println!("cargo::rustc-cfg=hw_rev=\"2.1\""),
+        "2.2" => println!("cargo::rustc-cfg=hw_rev=\"2.2\""),
+        _ => panic!("Unsupported CALIPTRA_HW_REV: {}", rev),
+    }
+    println!("cargo:rerun-if-env-changed=CALIPTRA_HW_REV");
+    println!("cargo::rustc-check-cfg=cfg(hw_rev, values(\"latest\", \"2.0\", \"2.1\", \"2.2\"))");
+
     cfg_if::cfg_if! {
         if #[cfg(not(feature = "std"))] {
             use caliptra_gen_linker_scripts::gen_memory_x;
