@@ -1390,4 +1390,10 @@ impl Drivers {
         digest_op.finalize(&mut initialization_values_hash)?;
         Ok(initialization_values_hash)
     }
+
+    #[cfg(hw_rev = "2.2")]
+    #[cfg_attr(feature = "cfi", cfi_impl_fn)]
+    pub fn drain_stash_measurements(&mut self) -> CaliptraResult<()> {
+        Ok(())
+    }
 }

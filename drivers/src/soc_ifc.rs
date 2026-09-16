@@ -724,6 +724,31 @@ impl SocIfc {
     pub fn get_clock_period(&self) -> u32 {
         self.soc_ifc.regs().cptra_timer_config().read()
     }
+
+    /// XXX this should be gated
+    pub fn validate_stash_measurements(&self) -> bool {
+        let status = self.soc_ifc.regs().stash_bank_status().read();
+        let end_stash = status.end_stash();
+        let slot_locked = status.slot_locked();
+
+        // SoC asserted end-of-stash without locking any slot, or
+        // SoC populated and locked slots but failed to assert end-of-stash.
+        if end_stash && slot_locked == 0 || !end_stash && slot_locked != 0 {
+            return false;
+        }
+
+        // Check if measurements are populated sequentially.
+        if slot_locked.trailing_ones() + slot_locked.leading_zeros() != u32::BITS {
+            return false;
+        }
+
+        true
+    }
+
+    /// XXX this should be gated
+    pub fn drain_stash_measurements(&mut self) -> CaliptraResult<()> {
+        Ok(())
+    }
 }
 
 bitfield::bitfield! {
