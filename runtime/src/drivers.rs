@@ -32,7 +32,7 @@ use crate::{
 
 use arrayvec::ArrayVec;
 #[cfg(hw_rev = "2.2")]
-use caliptra_api::mailbox::{MailboxReqHeader, StashMeasurementReq};
+use caliptra_api::mailbox::StashMeasurementData;
 use caliptra_cfi_derive::cfi_impl_fn;
 use caliptra_cfi_lib::{
     cfi_assert, cfi_assert_bool, cfi_assert_eq, cfi_assert_eq_12_words, cfi_launder,
@@ -42,7 +42,7 @@ use caliptra_common::crypto::Crypto;
 use caliptra_common::dice::{copy_ldevid_ecc384_cert, copy_ldevid_mldsa87_cert};
 use caliptra_common::mailbox_api::AddSubjectAltNameReq;
 #[cfg(hw_rev = "2.2")]
-use caliptra_common::stash_measurement::StashMeasurementCmd;
+use caliptra_common::stash_measurement;
 use caliptra_dpe::commands::{Command, DeriveContextCmd};
 use caliptra_dpe::context::{Context, ContextState, ContextType};
 use caliptra_dpe::response::DeriveContextResp;
@@ -1401,12 +1401,11 @@ impl Drivers {
         for slot in self.soc_ifc.stash_measurement_iter()? {
             let slot = slot?;
 
-            StashMeasurementCmd::extend_measurement(
+            stash_measurement::extend_measurement(
                 &mut self.pcr_bank,
                 &mut self.sha2_512_384,
                 self.persistent_data.get_mut(),
-                &StashMeasurementReq {
-                    hdr: MailboxReqHeader::default(),
+                &StashMeasurementData {
                     metadata: slot.metadata,
                     measurement: slot.measurement,
                     context: slot.context,

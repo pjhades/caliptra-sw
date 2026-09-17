@@ -14,6 +14,7 @@ Abstract:
 
 use crate::Array4x12;
 use bitfield::size_of;
+use caliptra_api::mailbox::StashMeasurementData;
 #[cfg(feature = "cfi")]
 use caliptra_cfi_derive::Launder;
 use caliptra_error::{CaliptraError, CaliptraResult};
@@ -729,7 +730,7 @@ impl SocIfc {
     /// XXX this should be gated
     pub fn stash_measurement_iter(
         &self,
-    ) -> CaliptraResult<impl Iterator<Item = CaliptraResult<StashMeasurementSlot>>> {
+    ) -> CaliptraResult<impl Iterator<Item = CaliptraResult<StashMeasurementData>>> {
         let status = self.soc_ifc.regs().stash_bank_status().read();
         let end_stash = status.end_stash();
         let slot_locked = status.slot_locked();
@@ -797,14 +798,7 @@ pub enum ResetReason {
     Unknown,
 }
 
-#[repr(C, packed)]
-#[derive(FromBytes)]
-pub struct StashMeasurementSlot {
-    pub metadata: [u8; 4],
-    pub measurement: [u8; 48],
-    pub context: [u8; 48],
-    pub svn: u32,
-}
+// XXX these should be gated
 
 pub struct StashMeasurementSlotIter<const LEN: usize> {
     data: [u32; LEN],
@@ -813,11 +807,11 @@ pub struct StashMeasurementSlotIter<const LEN: usize> {
 }
 
 impl<const LEN: usize> StashMeasurementSlotIter<LEN> {
-    const DWORDS_PER_SLOT: usize = core::mem::size_of::<StashMeasurementSlot>() / 4;
+    const DWORDS_PER_SLOT: usize = core::mem::size_of::<StashMeasurementData>() / 4;
 }
 
 impl<const LEN: usize> Iterator for StashMeasurementSlotIter<LEN> {
-    type Item = CaliptraResult<StashMeasurementSlot>;
+    type Item = CaliptraResult<StashMeasurementData>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_slot >= self.num_slots {
@@ -833,7 +827,7 @@ impl<const LEN: usize> Iterator for StashMeasurementSlotIter<LEN> {
             .map(|dwords| dwords.as_bytes())
             .ok_or(CaliptraError::RUNTIME_STASH_MEASUREMENT_SLOT_OUT_OF_BOUNDS)
             .and_then(|bytes| {
-                StashMeasurementSlot::read_from_bytes(&bytes)
+                StashMeasurementData::read_from_bytes(&bytes)
                     .map_err(|_| CaliptraError::RUNTIME_STASH_MEASUREMENT_SLOT_SIZE_ERROR)
             });
 

@@ -1583,24 +1583,32 @@ impl Request for MldsaVerifyReq {
 }
 // No command-specific output args
 
-// STASH_MEASUREMENT
 #[repr(C)]
 #[derive(Debug, IntoBytes, FromBytes, Immutable, KnownLayout, PartialEq, Eq)]
-pub struct StashMeasurementReq {
-    pub hdr: MailboxReqHeader,
+pub struct StashMeasurementData {
     pub metadata: [u8; 4],
     pub measurement: [u8; 48],
     pub context: [u8; 48],
     pub svn: u32,
 }
+
+// STASH_MEASUREMENT
+#[repr(C)]
+#[derive(Debug, IntoBytes, FromBytes, Immutable, KnownLayout, PartialEq, Eq)]
+pub struct StashMeasurementReq {
+    pub hdr: MailboxReqHeader,
+    pub data: StashMeasurementData,
+}
 impl Default for StashMeasurementReq {
     fn default() -> Self {
         Self {
             hdr: Default::default(),
-            metadata: Default::default(),
-            measurement: [0u8; 48],
-            context: [0u8; 48],
-            svn: Default::default(),
+            data: StashMeasurementData {
+                metadata: Default::default(),
+                measurement: [0u8; 48],
+                context: [0u8; 48],
+                svn: Default::default(),
+            },
         }
     }
 }
