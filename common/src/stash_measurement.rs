@@ -12,9 +12,9 @@ Abstract:
 
 --*/
 
-use caliptra_common::mailbox_api::{StashMeasurementReq, StashMeasurementResp};
-use caliptra_common::pcr::PCR_ID_STASH_MEASUREMENT;
-use caliptra_common::{PcrLogEntry, PcrLogEntryId};
+use crate::mailbox_api::{StashMeasurementReq, StashMeasurementResp};
+use crate::pcr::PCR_ID_STASH_MEASUREMENT;
+use crate::{PcrLogEntry, PcrLogEntryId};
 use caliptra_drivers::pcr_log::MeasurementLogEntry;
 use caliptra_drivers::{CaliptraError, CaliptraResult, PcrBank, PersistentData, Sha2_512_384};
 use zerocopy::{FromBytes, IntoBytes};
@@ -50,7 +50,7 @@ impl StashMeasurementCmd {
     /// # Returns
     /// * `()` - Ok
     ///   Error code on failure.
-    fn extend_measurement(
+    pub fn extend_measurement(
         pcr_bank: &mut PcrBank,
         sha2: &mut Sha2_512_384,
         persistent_data: &mut PersistentData,
@@ -107,4 +107,21 @@ impl StashMeasurementCmd {
 
         Ok(())
     }
+}
+
+pub fn extend_measurement(
+    pcr_bank: &mut PcrBank,
+    sha2: &mut Sha2_512_384,
+    persistent_data: &mut PersistentData,
+    stash_measurement: &StashMeasurementReq,
+) -> CaliptraResult<()> {
+    // Extend measurement into PCR31.
+    pcr_bank.extend_pcr(
+        PCR_ID_STASH_MEASUREMENT,
+        sha2,
+        stash_measurement.measurement.as_bytes(),
+    )?;
+
+    // Log measurement to the measurement log.
+    Self::log_measurement(persistent_data, stash_measurement)
 }

@@ -35,6 +35,7 @@ pub mod hmac_cm;
 pub mod keyids;
 pub mod macros;
 pub mod pmp;
+pub mod stash_measurement;
 pub mod uds_fe_programming;
 pub mod verifier;
 pub mod verify;
