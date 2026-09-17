@@ -756,28 +756,28 @@ impl SocIfc {
 
     /// XXX this should be gated
     pub fn drain_stash_measurements(&mut self) -> CaliptraResult<()> {
-        self.validate_stash_measurements()?;
+        //self.validate_stash_measurements()?;
 
-        let data = self.soc_ifc.regs().stash_bank_slot_data();
-        let num_slots = self
-            .soc_ifc
-            .regs()
-            .stash_bank_status()
-            .read()
-            .slot_locked()
-            .trailing_ones();
+        //let data = self.soc_ifc.regs().stash_bank_slot_data();
+        //let num_slots = self
+        //    .soc_ifc
+        //    .regs()
+        //    .stash_bank_status()
+        //    .read()
+        //    .slot_locked()
+        //    .trailing_ones();
 
-        // Dword index  Byte offset  Field        Width  Meaning
-        // 0            0            metadata     4 B    Caller-supplied tag
-        // 1-12         4-51         measurement  48 B   SHA-384 digest of the measured object
-        // 13-24        52-99        context      48 B   Caller-supplied measurement context/domain separator
-        // 25           100-103      svn          4 B    Security Version Number (u32)
-        const DWORDS_PER_SLOT: usize = 26;
-        for i in 0..num_slots {
-            let dword_offset = i * DWORDS_PER_SLOT;
+        //// Dword index  Byte offset  Field        Width  Meaning
+        //// 0            0            metadata     4 B    Caller-supplied tag
+        //// 1-12         4-51         measurement  48 B   SHA-384 digest of the measured object
+        //// 13-24        52-99        context      48 B   Caller-supplied measurement context/domain separator
+        //// 25           100-103      svn          4 B    Security Version Number (u32)
+        //const DWORDS_PER_SLOT: usize = 26;
+        //for i in 0..num_slots {
+        //    let dword_offset = i * DWORDS_PER_SLOT;
 
-            //data.get(index)
-        }
+        //    //data.get(index)
+        //}
 
         Ok(())
     }
