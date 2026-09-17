@@ -727,7 +727,7 @@ impl SocIfc {
         self.soc_ifc.regs().cptra_timer_config().read()
     }
 
-    /// XXX this should be gated
+    // XXX this should be gated
     pub fn stash_measurement_iter(
         &self,
     ) -> CaliptraResult<impl Iterator<Item = CaliptraResult<StashMeasurementData>>> {
@@ -753,12 +753,19 @@ impl SocIfc {
         })
     }
 
-    /// XXX this should be gated
-    fn lock_stash_measurement_bank(&self) {
+    // XXX this should be gated
+    pub fn lock_stash_measurement_bank(&mut self) {
         self.soc_ifc
-            .regs()
-            .cptra_lock()
+            .regs_mut()
+            .stash_bank_cptra_lock()
             .write(|w| w.cptra_lock(true));
+    }
+
+    // XXX this should be gated
+    pub fn poll_end_stash(&self) -> CaliptraResult<()> {
+        // XXX timeout
+        while self.soc_ifc.regs().stash_bank_status().read().end_stash() {}
+        Ok(())
     }
 }
 
@@ -809,7 +816,6 @@ pub enum ResetReason {
 // XXX these should be gated
 
 pub struct StashMeasurementSlotIter<const LEN: usize> {
-    soc_ifc: SocIfc,
     data: [u32; LEN],
     current_slot: usize,
     num_slots: usize,

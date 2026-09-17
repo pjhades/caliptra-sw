@@ -1398,6 +1398,8 @@ impl Drivers {
     #[cfg(hw_rev = "2.2")]
     #[cfg_attr(feature = "cfi", cfi_impl_fn)]
     pub fn drain_stash_measurements(&mut self) -> CaliptraResult<()> {
+        self.soc_ifc.poll_end_stash()?;
+
         for slot in self.soc_ifc.stash_measurement_iter()? {
             let m = slot?;
             StashMeasurementCmd::stash_measurement(
@@ -1411,7 +1413,7 @@ impl Drivers {
             )?;
         }
 
-        self.lock_stash_measurement_bank();
+        self.soc_ifc.lock_stash_measurement_bank();
 
         Ok(())
     }
