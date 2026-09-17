@@ -761,6 +761,14 @@ impl SocIfc {
             num_slots: slot_locked.trailing_ones() as usize,
         })
     }
+
+    /// XXX this should be gated
+    fn lock_stash_measurement_bank(&self) {
+        self.soc_ifc
+            .regs()
+            .cptra_lock()
+            .write(|w| w.cptra_lock(true));
+    }
 }
 
 bitfield::bitfield! {
@@ -810,6 +818,7 @@ pub enum ResetReason {
 // XXX these should be gated
 
 pub struct StashMeasurementSlotIter<const LEN: usize> {
+    soc_ifc: SocIfc,
     data: [u32; LEN],
     current_slot: usize,
     num_slots: usize,

@@ -1411,6 +1411,8 @@ impl Drivers {
             )?;
         }
 
+        self.lock_stash_measurement_bank();
+
         Ok(())
     }
 }
