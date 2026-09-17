@@ -1996,17 +1996,17 @@ impl CaliptraError {
         ),
         (
             RUNTIME_STASH_MEASUREMENT_BANK_INVALID_STATUS,
-            0x000E00B1,
+            0x000E00B2,
             "Runtime Error: Stash measurement bank status is invalid"
         ),
         (
             RUNTIME_STASH_MEASUREMENT_SLOT_OUT_OF_BOUNDS,
-            0x000E00B2,
+            0x000E00B3,
             "Runtime Error: Stash measurement slot out of bounds"
         ),
         (
             RUNTIME_STASH_MEASUREMENT_SLOT_SIZE_ERROR,
-            0x000E00B3,
+            0x000E00B4,
             "Runtime Error: Stash measurement slot size error"
         ),
         // FMC Errors
