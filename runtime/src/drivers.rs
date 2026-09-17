@@ -1399,23 +1399,12 @@ impl Drivers {
     #[cfg_attr(feature = "cfi", cfi_impl_fn)]
     pub fn drain_stash_measurements(&mut self) -> CaliptraResult<()> {
         for slot in self.soc_ifc.stash_measurement_iter()? {
-            let slot = slot?;
-            //
-            //pub(crate) fn stash_measurement(
-            //    drivers: &mut Drivers,
-            //    metadata: &[u8; 4],
-            //    measurement: &[u8; 48],
-            //    svn: u32,
-            //    caller_privilege_level: PauserPrivileges,
-            //    locality: u32,
-            //    caliptra_managed_access: CaliptraManagedContextAccess,
-            //) -> CaliptraResult<DpeErrorCode> {
-
+            let m = slot?;
             StashMeasurementCmd::stash_measurement(
                 self,
-                &slot.metadata,
-                &slot.measurement,
-                slot.svn,
+                &m.metadata,
+                &m.measurement,
+                m.svn,
                 PauserPrivileges::PL0,
                 self.persistent_data.get().rom.manifest1.header.pl0_pauser,
                 CaliptraManagedContextAccess::Denied,
