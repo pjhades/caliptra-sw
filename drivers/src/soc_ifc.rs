@@ -864,8 +864,8 @@ impl<'a> Iterator for StashMeasurementSlotIter<'a> {
         let dword_offset = Self::DWORDS_PER_SLOT * self.current_slot;
         //let mut dword_offset = self.current_slot * Self::DWORDS_PER_SLOT;
 
-        let bytes = match data
-            .read()
+        let slots = data.read();
+        let bytes = match slots
             .get(dword_offset..dword_offset + Self::DWORDS_PER_SLOT)
             .map(|dwords| dwords.as_bytes())
             .ok_or(CaliptraError::RUNTIME_STASH_MEASUREMENT_SLOT_OUT_OF_BOUNDS)
