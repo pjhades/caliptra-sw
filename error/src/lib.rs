@@ -2025,12 +2025,12 @@ impl CaliptraError {
         ),
         (
             RUNTIME_STASH_MEASUREMENT_SLOT_OUT_OF_BOUNDS,
-            0x000E00B2,
+            0x000E00B5,
             "Runtime Error: Stash measurement slot out of bounds"
         ),
         (
             RUNTIME_STASH_MEASUREMENT_SLOT_SIZE_ERROR,
-            0x000E00B3,
+            0x000E00B6,
             "Runtime Error: Stash measurement slot size error"
         ),
         // FMC Errors

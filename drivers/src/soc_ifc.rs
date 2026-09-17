@@ -736,7 +736,7 @@ impl SocIfc {
     }
 
     /// XXX this should be gated
-    pub fn validate_stash_measurements(
+    pub fn stash_measurement_iter(
         &self,
     ) -> CaliptraResult<impl Iterator<Item = CaliptraResult<StashMeasurementSlot>>> {
         let status = self.soc_ifc.regs().stash_bank_status().read();

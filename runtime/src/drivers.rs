@@ -1394,7 +1394,7 @@ impl Drivers {
     #[cfg(hw_rev = "2.2")]
     #[cfg_attr(feature = "cfi", cfi_impl_fn)]
     pub fn drain_stash_measurements(&mut self) -> CaliptraResult<()> {
-        self.soc_ifc.validate_stash_measurements()?;
+        for _slot in self.soc_ifc.stash_measurement_iter()? {}
         Ok(())
     }
 }
