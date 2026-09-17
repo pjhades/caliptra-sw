@@ -834,6 +834,7 @@ impl<const LEN: usize> Iterator for StashMeasurementSlotIter<LEN> {
         }
 
         let dword_offset = Self::DWORDS_PER_SLOT * self.current_slot;
+        self.current_slot += 1;
 
         let bytes = match self
             .data
