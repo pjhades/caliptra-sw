@@ -726,7 +726,7 @@ impl SocIfc {
     }
 
     /// XXX this should be gated
-    pub fn validate_stash_measurements(&self) -> bool {
+    pub fn validate_stash_measurements(&self) -> CaliptraResult<()> {
         let status = self.soc_ifc.regs().stash_bank_status().read();
         let end_stash = status.end_stash();
         let slot_locked = status.slot_locked();
@@ -734,19 +734,42 @@ impl SocIfc {
         // SoC asserted end-of-stash without locking any slot, or
         // SoC populated and locked slots but failed to assert end-of-stash.
         if end_stash && slot_locked == 0 || !end_stash && slot_locked != 0 {
-            return false;
+            return Err(CaliptraError::RUNTIME_STASH_MEASUREMENT_BANK_INVALID_STATUS);
         }
 
         // Check if measurements are populated sequentially.
         if slot_locked.trailing_ones() + slot_locked.leading_zeros() != u32::BITS {
-            return false;
+            return Err(CaliptraError::RUNTIME_STASH_MEASUREMENT_BANK_INVALID_STATUS);
         }
 
-        true
+        Ok(())
     }
 
     /// XXX this should be gated
     pub fn drain_stash_measurements(&mut self) -> CaliptraResult<()> {
+        self.validate_stash_measurements()?;
+
+        let data = self.soc_ifc.regs().stash_bank_slot_data();
+        let num_slots = self
+            .soc_ifc
+            .regs()
+            .stash_bank_status()
+            .read()
+            .slot_locked()
+            .trailing_ones();
+
+        // Dword index  Byte offset  Field        Width  Meaning
+        // 0            0            metadata     4 B    Caller-supplied tag
+        // 1-12         4-51         measurement  48 B   SHA-384 digest of the measured object
+        // 13-24        52-99        context      48 B   Caller-supplied measurement context/domain separator
+        // 25           100-103      svn          4 B    Security Version Number (u32)
+        const DWORDS_PER_SLOT: usize = 26;
+        for i in 0..num_slots {
+            let dword_offset = i * DWORDS_PER_SLOT;
+
+            //data.get(index)
+        }
+
         Ok(())
     }
 }

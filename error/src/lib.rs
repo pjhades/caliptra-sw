@@ -1994,6 +1994,11 @@ impl CaliptraError {
             0x000E00B0,
             "Runtime Error: Stash measurement firmware ID is reserved for Caliptra internal use"
         ),
+        (
+            RUNTIME_STASH_MEASUREMENT_BANK_INVALID_STATUS,
+            0x000E00B1,
+            "Runtime Error: Stash measurement bank status is invalid"
+        ),
         // FMC Errors
         (FMC_GLOBAL_NMI, 0x000F0001, "FMC Error: Global NMI"),
         (
