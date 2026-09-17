@@ -2018,6 +2018,11 @@ impl CaliptraError {
             0x000E00B3,
             "Runtime Error: Auth manifest invalid flags"
         ),
+        (
+            RUNTIME_STASH_MEASUREMENT_BANK_INVALID_STATUS,
+            0x000E00B4,
+            "Runtime Error: Stash measurement bank status is invalid"
+        ),
         // FMC Errors
         (FMC_GLOBAL_NMI, 0x000F0001, "FMC Error: Global NMI"),
         (
