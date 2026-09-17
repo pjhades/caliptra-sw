@@ -19,6 +19,7 @@ use caliptra_cfi_derive::Launder;
 use caliptra_error::{CaliptraError, CaliptraResult};
 use caliptra_registers::soc_ifc::enums::DeviceLifecycleE;
 use caliptra_registers::soc_ifc::{self, SocIfcReg};
+use zerocopy::{FromBytes, IntoBytes};
 
 use crate::{memory_layout, FuseBank};
 
@@ -726,7 +727,7 @@ impl SocIfc {
     }
 
     /// XXX this should be gated
-    pub fn validate_stash_measurements(&self) -> CaliptraResult<()> {
+    pub fn validate_stash_measurements(&self) -> CaliptraResult<StashMeasurementSlotIter<'_>> {
         let status = self.soc_ifc.regs().stash_bank_status().read();
         let end_stash = status.end_stash();
         let slot_locked = status.slot_locked();
@@ -742,7 +743,11 @@ impl SocIfc {
             return Err(CaliptraError::RUNTIME_STASH_MEASUREMENT_BANK_INVALID_STATUS);
         }
 
-        Ok(())
+        Ok(StashMeasurementSlotIter {
+            soc_ifc: &self.soc_ifc,
+            current_slot: 0,
+            num_slots: slot_locked.trailing_ones() as usize,
+        })
     }
 
     /// XXX this should be gated
@@ -816,4 +821,84 @@ pub enum ResetReason {
 
     /// Unknown Reset
     Unknown,
+}
+
+#[repr(C, packed)]
+#[derive(FromBytes)]
+pub struct StashMeasurementSlot {
+    pub metadata: [u8; 4],
+    pub measurement: [u8; 48],
+    pub context: [u8; 48],
+    pub svn: u32,
+}
+
+pub struct StashMeasurementSlotIter<'a> {
+    soc_ifc: &'a SocIfcReg,
+    current_slot: usize,
+    num_slots: usize,
+}
+
+impl StashMeasurementSlotIter<'_> {
+    const DWORDS_PER_SLOT: usize = core::mem::size_of::<StashMeasurementSlot>() / 4;
+}
+
+impl<'a> Iterator for StashMeasurementSlotIter<'a> {
+    type Item = CaliptraResult<StashMeasurementSlot>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_slot >= self.num_slots {
+            return None;
+        }
+
+        let regs = self.soc_ifc.regs();
+        let data = regs.stash_bank_slot_data();
+        let dword_offset = Self::DWORDS_PER_SLOT * self.current_slot;
+        //let mut dword_offset = self.current_slot * Self::DWORDS_PER_SLOT;
+
+        let bytes = match data
+            .read()
+            .get(dword_offset..dword_offset + Self::DWORDS_PER_SLOT)
+            .map(|dwords| dwords.as_bytes())
+            .ok_or(CaliptraError::RUNTIME_STASH_MEASUREMENT_SLOT_OUT_OF_BOUNDS)
+        {
+            Ok(bytes) => bytes,
+            Err(e) => return Some(Err(e)),
+        };
+
+        Some(
+            StashMeasurementSlot::read_from_bytes(&bytes)
+                .map_err(|_| CaliptraError::RUNTIME_STASH_MEASUREMENT_SLOT_SIZE_ERROR),
+        )
+
+        //let metadata = data.get(dword_offset)?.read().to_le_bytes();
+
+        //dword_offset += metadata.len() / 4;
+
+        //let mut measurement = [0; 48];
+        //for (i, chunk) in measurement.chunks_exact_mut(4).enumerate() {
+        //    let dword = data.get(dword_offset + i)?.read();
+        //    chunk.copy_from_slice(&dword.to_le_bytes());
+        //}
+
+        //dword_offset += measurement.len() / 4;
+
+        //let mut context = [0; 48];
+        //for (i, chunk) in context.chunks_exact_mut(4).enumerate() {
+        //    let dword = data.get(dword_offset + i)?.read();
+        //    chunk.copy_from_slice(&dword.to_le_bytes());
+        //}
+
+        //dword_offset += context.len() / 4;
+
+        //let svn = data.get(dword_offset)?.read();
+
+        //self.current_slot += 1;
+
+        //Some(StashMeasurementSlot {
+        //    metadata,
+        //    measurement,
+        //    context,
+        //    svn,
+        //})
+    }
 }
