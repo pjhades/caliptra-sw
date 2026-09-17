@@ -736,7 +736,9 @@ impl SocIfc {
     }
 
     /// XXX this should be gated
-    pub fn validate_stash_measurements(&self) -> CaliptraResult<StashMeasurementSlotIter<'_>> {
+    pub fn validate_stash_measurements(
+        &self,
+    ) -> CaliptraResult<impl Iterator<Item = CaliptraResult<StashMeasurementSlot>>> {
         let status = self.soc_ifc.regs().stash_bank_status().read();
         let end_stash = status.end_stash();
         let slot_locked = status.slot_locked();
@@ -753,38 +755,10 @@ impl SocIfc {
         }
 
         Ok(StashMeasurementSlotIter {
-            soc_ifc: &self.soc_ifc,
+            data: self.soc_ifc.regs().stash_bank_slot_data().read(),
             current_slot: 0,
             num_slots: slot_locked.trailing_ones() as usize,
         })
-    }
-
-    /// XXX this should be gated
-    pub fn drain_stash_measurements(&mut self) -> CaliptraResult<()> {
-        //self.validate_stash_measurements()?;
-
-        //let data = self.soc_ifc.regs().stash_bank_slot_data();
-        //let num_slots = self
-        //    .soc_ifc
-        //    .regs()
-        //    .stash_bank_status()
-        //    .read()
-        //    .slot_locked()
-        //    .trailing_ones();
-
-        //// Dword index  Byte offset  Field        Width  Meaning
-        //// 0            0            metadata     4 B    Caller-supplied tag
-        //// 1-12         4-51         measurement  48 B   SHA-384 digest of the measured object
-        //// 13-24        52-99        context      48 B   Caller-supplied measurement context/domain separator
-        //// 25           100-103      svn          4 B    Security Version Number (u32)
-        //const DWORDS_PER_SLOT: usize = 26;
-        //for i in 0..num_slots {
-        //    let dword_offset = i * DWORDS_PER_SLOT;
-
-        //    //data.get(index)
-        //}
-
-        Ok(())
     }
 }
 
@@ -841,17 +815,17 @@ pub struct StashMeasurementSlot {
     pub svn: u32,
 }
 
-pub struct StashMeasurementSlotIter<'a> {
-    soc_ifc: &'a SocIfcReg,
+pub struct StashMeasurementSlotIter<const LEN: usize> {
+    data: [u32; LEN],
     current_slot: usize,
     num_slots: usize,
 }
 
-impl StashMeasurementSlotIter<'_> {
+impl<const LEN: usize> StashMeasurementSlotIter<LEN> {
     const DWORDS_PER_SLOT: usize = core::mem::size_of::<StashMeasurementSlot>() / 4;
 }
 
-impl<'a> Iterator for StashMeasurementSlotIter<'a> {
+impl<const LEN: usize> Iterator for StashMeasurementSlotIter<LEN> {
     type Item = CaliptraResult<StashMeasurementSlot>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -859,13 +833,10 @@ impl<'a> Iterator for StashMeasurementSlotIter<'a> {
             return None;
         }
 
-        let regs = self.soc_ifc.regs();
-        let data = regs.stash_bank_slot_data();
         let dword_offset = Self::DWORDS_PER_SLOT * self.current_slot;
-        //let mut dword_offset = self.current_slot * Self::DWORDS_PER_SLOT;
 
-        let slots = data.read();
-        let bytes = match slots
+        let bytes = match self
+            .data
             .get(dword_offset..dword_offset + Self::DWORDS_PER_SLOT)
             .map(|dwords| dwords.as_bytes())
             .ok_or(CaliptraError::RUNTIME_STASH_MEASUREMENT_SLOT_OUT_OF_BOUNDS)
@@ -878,36 +849,5 @@ impl<'a> Iterator for StashMeasurementSlotIter<'a> {
             StashMeasurementSlot::read_from_bytes(&bytes)
                 .map_err(|_| CaliptraError::RUNTIME_STASH_MEASUREMENT_SLOT_SIZE_ERROR),
         )
-
-        //let metadata = data.get(dword_offset)?.read().to_le_bytes();
-
-        //dword_offset += metadata.len() / 4;
-
-        //let mut measurement = [0; 48];
-        //for (i, chunk) in measurement.chunks_exact_mut(4).enumerate() {
-        //    let dword = data.get(dword_offset + i)?.read();
-        //    chunk.copy_from_slice(&dword.to_le_bytes());
-        //}
-
-        //dword_offset += measurement.len() / 4;
-
-        //let mut context = [0; 48];
-        //for (i, chunk) in context.chunks_exact_mut(4).enumerate() {
-        //    let dword = data.get(dword_offset + i)?.read();
-        //    chunk.copy_from_slice(&dword.to_le_bytes());
-        //}
-
-        //dword_offset += context.len() / 4;
-
-        //let svn = data.get(dword_offset)?.read();
-
-        //self.current_slot += 1;
-
-        //Some(StashMeasurementSlot {
-        //    metadata,
-        //    measurement,
-        //    context,
-        //    svn,
-        //})
     }
 }
