@@ -30,6 +30,8 @@ use crate::{
     PL1_DPE_ACTIVE_CONTEXT_DEFAULT_THRESHOLD,
 };
 
+#[cfg(hw_rev = "2.2")]
+use crate::stash_measurement::{CaliptraManagedContextAccess, StashMeasurementCmd};
 use arrayvec::ArrayVec;
 #[cfg(hw_rev = "2.2")]
 use caliptra_api::mailbox::StashMeasurementData;
@@ -41,8 +43,6 @@ use caliptra_common::cfi_check;
 use caliptra_common::crypto::Crypto;
 use caliptra_common::dice::{copy_ldevid_ecc384_cert, copy_ldevid_mldsa87_cert};
 use caliptra_common::mailbox_api::AddSubjectAltNameReq;
-#[cfg(hw_rev = "2.2")]
-use caliptra_common::stash_measurement;
 use caliptra_dpe::commands::{Command, DeriveContextCmd};
 use caliptra_dpe::context::{Context, ContextState, ContextType};
 use caliptra_dpe::response::DeriveContextResp;
@@ -1400,17 +1400,25 @@ impl Drivers {
     pub fn drain_stash_measurements(&mut self) -> CaliptraResult<()> {
         for slot in self.soc_ifc.stash_measurement_iter()? {
             let slot = slot?;
+            //
+            //pub(crate) fn stash_measurement(
+            //    drivers: &mut Drivers,
+            //    metadata: &[u8; 4],
+            //    measurement: &[u8; 48],
+            //    svn: u32,
+            //    caller_privilege_level: PauserPrivileges,
+            //    locality: u32,
+            //    caliptra_managed_access: CaliptraManagedContextAccess,
+            //) -> CaliptraResult<DpeErrorCode> {
 
-            stash_measurement::extend_measurement(
-                &mut self.pcr_bank,
-                &mut self.sha2_512_384,
-                self.persistent_data.get_mut(),
-                &StashMeasurementData {
-                    metadata: slot.metadata,
-                    measurement: slot.measurement,
-                    context: slot.context,
-                    svn: slot.svn,
-                },
+            StashMeasurementCmd::stash_measurement(
+                self,
+                &slot.metadata,
+                &slot.measurement,
+                slot.svn,
+                PauserPrivileges::PL0,
+                self.persistent_data.get().rom.manifest1.header.pl0_pauser,
+                CaliptraManagedContextAccess::Denied,
             )?;
         }
 

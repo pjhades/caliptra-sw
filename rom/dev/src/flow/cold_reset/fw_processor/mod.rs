@@ -26,8 +26,6 @@ use caliptra_api::mailbox::{
 #[cfg(feature = "cfi")]
 use caliptra_cfi_derive::cfi_impl_fn;
 use caliptra_cfi_lib::{cfi_assert_bool, cfi_assert_ne, CfiCounter};
-#[cfg(any(hw_rev = "2.0", hw_rev = "2.1"))]
-use caliptra_common::stash_measurement;
 use caliptra_common::{
     crypto::{Crypto, EncryptedCmk, UnencryptedCmk},
     mailbox_api::{CommandId, MailboxReqHeader, ZeroizeUdsFeResp},
