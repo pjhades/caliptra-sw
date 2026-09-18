@@ -772,8 +772,7 @@ impl SocIfc {
 
     // XXX this should be gated
     pub fn poll_end_stash(&self) -> CaliptraResult<()> {
-        // XXX timeout
-        while self.soc_ifc.regs().stash_bank_status().read().end_stash() {}
+        while !self.soc_ifc.regs().stash_bank_status().read().end_stash() {}
         Ok(())
     }
 }

@@ -43,6 +43,7 @@ use caliptra_common::cfi_check;
 use caliptra_common::crypto::Crypto;
 use caliptra_common::dice::{copy_ldevid_ecc384_cert, copy_ldevid_mldsa87_cert};
 use caliptra_common::mailbox_api::AddSubjectAltNameReq;
+use caliptra_common::{start_wdt, stop_wdt, WdtTimeout};
 use caliptra_dpe::commands::{Command, DeriveContextCmd};
 use caliptra_dpe::context::{Context, ContextState, ContextType};
 use caliptra_dpe::response::DeriveContextResp;
@@ -1398,7 +1399,9 @@ impl Drivers {
     #[cfg(hw_rev = "2.2")]
     #[cfg_attr(feature = "cfi", cfi_impl_fn)]
     pub fn drain_stash_measurements(&mut self) -> CaliptraResult<()> {
+        start_wdt(&mut self.soc_ifc, WdtTimeout::default());
         self.soc_ifc.poll_end_stash()?;
+        stop_wdt(&mut self.soc_ifc);
 
         for slot in self.soc_ifc.stash_measurement_iter()? {
             let m = slot?;
