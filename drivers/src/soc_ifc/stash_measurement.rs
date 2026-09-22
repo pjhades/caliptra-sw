@@ -56,7 +56,7 @@ impl SocIfc {
 }
 
 #[repr(C, packed)]
-#[derive(FromBytes)]
+#[derive(FromBytes, IntoBytes)]
 pub struct StashMeasurementData {
     pub metadata: [u8; 4],
     pub measurement: [u8; 48],
@@ -64,14 +64,13 @@ pub struct StashMeasurementData {
     pub svn: u32,
 }
 
+pub const DWORDS_PER_SLOT: usize =
+    core::mem::size_of::<StashMeasurementData>() / core::mem::size_of::<u32>();
+
 pub struct StashMeasurementSlotIter<const LEN: usize> {
     data: [u32; LEN],
     current_slot: usize,
     num_slots: usize,
-}
-
-impl<const LEN: usize> StashMeasurementSlotIter<LEN> {
-    const DWORDS_PER_SLOT: usize = core::mem::size_of::<StashMeasurementData>() / 4;
 }
 
 impl<const LEN: usize> Iterator for StashMeasurementSlotIter<LEN> {
@@ -82,12 +81,12 @@ impl<const LEN: usize> Iterator for StashMeasurementSlotIter<LEN> {
             return None;
         }
 
-        let dword_offset = Self::DWORDS_PER_SLOT * self.current_slot;
+        let dword_offset = DWORDS_PER_SLOT * self.current_slot;
         self.current_slot += 1;
 
         let result = self
             .data
-            .get(dword_offset..dword_offset + Self::DWORDS_PER_SLOT)
+            .get(dword_offset..dword_offset + DWORDS_PER_SLOT)
             .map(|dwords| dwords.as_bytes())
             .ok_or(CaliptraError::RUNTIME_STASH_MEASUREMENT_SLOT_OUT_OF_BOUNDS)
             .and_then(|bytes| {
