@@ -33,8 +33,6 @@ use crate::{
 #[cfg(hw_rev = "2.2")]
 use crate::stash_measurement::{CaliptraManagedContextAccess, StashMeasurementCmd};
 use arrayvec::ArrayVec;
-#[cfg(hw_rev = "2.2")]
-use caliptra_api::mailbox::StashMeasurementData;
 use caliptra_cfi_derive::cfi_impl_fn;
 use caliptra_cfi_lib::{
     cfi_assert, cfi_assert_bool, cfi_assert_eq, cfi_assert_eq_12_words, cfi_launder,

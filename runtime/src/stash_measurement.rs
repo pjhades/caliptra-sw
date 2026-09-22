@@ -176,9 +176,9 @@ impl StashMeasurementCmd {
 
         let dpe_result = Self::stash_measurement(
             drivers,
-            &cmd.data.metadata,
-            &cmd.data.measurement,
-            cmd.data.svn,
+            &cmd.metadata,
+            &cmd.measurement,
+            cmd.svn,
             caller_privilege_level,
             locality,
             CaliptraManagedContextAccess::Denied,

@@ -13,7 +13,6 @@ Abstract:
 --*/
 
 use crate::soc_ifc::SocIfc;
-use caliptra_api::mailbox::StashMeasurementData;
 use caliptra_error::{CaliptraError, CaliptraResult};
 use zerocopy::{FromBytes, IntoBytes};
 
@@ -54,6 +53,15 @@ impl SocIfc {
         while !self.soc_ifc.regs().stash_bank_status().read().end_stash() {}
         Ok(())
     }
+}
+
+#[repr(C, packed)]
+#[derive(FromBytes)]
+pub struct StashMeasurementData {
+    pub metadata: [u8; 4],
+    pub measurement: [u8; 48],
+    pub context: [u8; 48],
+    pub svn: u32,
 }
 
 pub struct StashMeasurementSlotIter<const LEN: usize> {
