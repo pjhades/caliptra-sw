@@ -5,7 +5,8 @@ use caliptra_api::SocManager;
 use caliptra_builder::firmware::APP_WITH_UART_STASH_MEASUREMENT_REGISTERS;
 use caliptra_common::{
     mailbox_api::{
-        CommandId, MailboxReq, MailboxReqHeader, QuotePcrsEcc384Req, QuotePcrsEcc384Resp,
+        CommandId, GetTaggedTciReq, GetTaggedTciResp, MailboxReq, MailboxReqHeader,
+        QuotePcrsEcc384Req, QuotePcrsEcc384Resp, TagTciReq,
     },
     memory_layout::{ROM_ORG, ROM_SIZE, ROM_STACK_ORG, ROM_STACK_SIZE, STACK_ORG, STACK_SIZE},
     FMC_ORG, FMC_SIZE, RUNTIME_ORG, RUNTIME_SIZE,
@@ -75,7 +76,6 @@ fn run_model(subsystem_mode: bool) -> DefaultHwModel {
 #[test]
 fn test_drain_stash_measurements() {
     let mut model = run_model(false);
-
     let measurements = [
         StashMeasurementData {
             metadata: [0xa1; 4],
@@ -91,6 +91,7 @@ fn test_drain_stash_measurements() {
         },
     ];
 
+    // SoC writes measurements.
     for (i, measurement) in measurements.iter().enumerate() {
         for (j, chunk) in measurement.as_bytes().chunks_exact(4).enumerate() {
             model
@@ -105,15 +106,19 @@ fn test_drain_stash_measurements() {
             .write(|x| x.lock(1 << i));
     }
 
+    // SoC writes end-of-stash.
     model
         .soc_ifc()
         .stash_end_stash()
         .write(|x| x.end_stash(true));
 
+    // Fast-forward to the mailbox command loop.
     model.step_until(|m| {
         m.soc_ifc().cptra_boot_status().read() == u32::from(RtBootStatus::RtReadyForCommands)
     });
 
+    // At this point Caliptra should have draind the measurements and
+    // have locked the bank.
     assert!(model.soc_ifc().stash_bank_status().read().cptra_lock());
 
     // Verify the measurements actually landed in PCR31.
@@ -140,6 +145,40 @@ fn test_drain_stash_measurements() {
         expected_pcr31.copy_from_slice(&hasher.finalize());
     }
     assert_eq!(resp.pcrs[31], expected_pcr31);
+
+    // Verify DPE actually derived a context for the drained measurements.
+    // The default context should be derived from the last measurement, and
+    // its current TCI should match the test measurement.
+    const TAG: u32 = 0xc01d_cafe;
+    let mut cmd = MailboxReq::TagTci(TagTciReq {
+        hdr: MailboxReqHeader { chksum: 0 },
+        // Default context handle.
+        handle: [0u8; 16],
+        tag: TAG,
+    });
+    cmd.populate_chksum().unwrap();
+    model
+        .mailbox_execute(u32::from(CommandId::DPE_TAG_TCI), cmd.as_bytes().unwrap())
+        .unwrap()
+        .expect("We should have received a response");
+
+    let mut cmd = MailboxReq::GetTaggedTci(GetTaggedTciReq {
+        hdr: MailboxReqHeader { chksum: 0 },
+        tag: TAG,
+    });
+    cmd.populate_chksum().unwrap();
+    let resp = model
+        .mailbox_execute(
+            u32::from(CommandId::DPE_GET_TAGGED_TCI),
+            cmd.as_bytes().unwrap(),
+        )
+        .unwrap()
+        .expect("We should have received a response");
+    let resp = GetTaggedTciResp::read_from_bytes(resp.as_slice()).unwrap();
+
+    assert_eq!(resp.tci_current, measurements[1].measurement);
+    assert_ne!(resp.tci_cumulative, resp.tci_current);
+    assert_ne!(resp.tci_cumulative, [0u8; 48]);
 }
 
 // more tests
