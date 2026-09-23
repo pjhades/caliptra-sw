@@ -30,7 +30,7 @@ use crate::{
     PL1_DPE_ACTIVE_CONTEXT_DEFAULT_THRESHOLD,
 };
 
-#[cfg(hw_rev = "2.2")]
+#[cfg(feature = "stash-measurement-registers")]
 use crate::stash_measurement::{CaliptraManagedContextAccess, StashMeasurementCmd};
 use arrayvec::ArrayVec;
 use caliptra_cfi_derive::cfi_impl_fn;
@@ -1394,7 +1394,7 @@ impl Drivers {
         Ok(initialization_values_hash)
     }
 
-    #[cfg(hw_rev = "2.2")]
+    #[cfg(feature = "stash-measurement-registers")]
     #[cfg_attr(feature = "cfi", cfi_impl_fn)]
     pub fn drain_stash_measurements(&mut self) -> CaliptraResult<()> {
         start_wdt(&mut self.soc_ifc, WdtTimeout::default());

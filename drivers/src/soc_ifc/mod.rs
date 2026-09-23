@@ -779,5 +779,5 @@ pub enum ResetReason {
     Unknown,
 }
 
-#[cfg(hw_rev = "2.2")]
+#[cfg(feature = "stash-measurement-registers")]
 pub mod stash_measurement;
