@@ -1,9 +1,17 @@
 // Licensed under the Apache-2.0 license
 
-use crate::common::{run_rt_test, RuntimeTestArgs};
+use crate::common::{rom_for_fw_integration_tests, run_rt_test, RuntimeTestArgs};
 use caliptra_api::SocManager;
+use caliptra_common::{
+    memory_layout::{ROM_ORG, ROM_SIZE, ROM_STACK_ORG, ROM_STACK_SIZE, STACK_ORG, STACK_SIZE},
+    FMC_ORG, FMC_SIZE, RUNTIME_ORG, RUNTIME_SIZE,
+};
 use caliptra_drivers::soc_ifc::stash_measurement::{StashMeasurementData, DWORDS_PER_SLOT};
-use caliptra_hw_model::{CaliptraHwVersion, InitParams};
+use caliptra_hw_model::{
+    CaliptraHwVersion, CodeRange, DefaultHwModel, HwModel, ImageInfo, InitParams, StackInfo,
+    StackRange,
+};
+use caliptra_runtime::RtBootStatus;
 use zerocopy::IntoBytes;
 
 //use caliptra_builder::ImageOptions;
@@ -13,7 +21,6 @@ use zerocopy::IntoBytes;
 //    StashMeasurementResp,
 //};
 //use caliptra_error::CaliptraError;
-//use caliptra_runtime::RtBootStatus;
 //use sha2::{Digest, Sha384};
 //use zerocopy::{FromBytes, IntoBytes};
 //
@@ -25,18 +32,42 @@ use zerocopy::IntoBytes;
 ///// Firmware ID reserved for the Caliptra-managed MCU RT DPE context.
 //const MCU_RT_RESERVED_FW_ID: [u8; 4] = ActivateFirmwareReq::MCU_IMAGE_ID.to_le_bytes();
 
-#[test]
-fn test_drain_stash_measurements() {
+fn run_model(subsystem_mode: bool) -> DefaultHwModel {
+    let rom = rom_for_fw_integration_tests().unwrap();
+    let image_info = vec![
+        ImageInfo::with_name(
+            StackRange::new(ROM_STACK_ORG + ROM_STACK_SIZE, ROM_STACK_ORG),
+            CodeRange::new(ROM_ORG, ROM_ORG + ROM_SIZE),
+            "caliptra-rom".to_owned(),
+        ),
+        ImageInfo::with_name(
+            StackRange::new(STACK_ORG + STACK_SIZE, STACK_ORG),
+            CodeRange::new(FMC_ORG, FMC_ORG + FMC_SIZE),
+            "caliptra-fmc".to_owned(),
+        ),
+        ImageInfo::with_name(
+            StackRange::new(STACK_ORG + STACK_SIZE, STACK_ORG),
+            CodeRange::new(RUNTIME_ORG, RUNTIME_ORG + RUNTIME_SIZE),
+            "caliptra-runtime".to_owned(),
+        ),
+    ];
     let runtime_test_args = RuntimeTestArgs {
         init_params: Some(InitParams {
             hw_version: CaliptraHwVersion::V2_2,
-            subsystem_mode: false,
+            rom: &rom,
+            stack_info: Some(StackInfo::new(image_info)),
+            subsystem_mode,
             ..Default::default()
         }),
         ..Default::default()
     };
 
-    let mut model = run_rt_test(runtime_test_args);
+    run_rt_test(runtime_test_args)
+}
+
+#[test]
+fn test_drain_stash_measurements() {
+    let mut model = run_model(false);
 
     let measurements = [
         StashMeasurementData {
@@ -66,6 +97,13 @@ fn test_drain_stash_measurements() {
             .stash_bank_soc_lock()
             .write(|x| x.lock(1 << i));
     }
+
+    println!("coool");
+
+    model.step_until(|m| {
+        m.soc_ifc().cptra_boot_status().read() == u32::from(RtBootStatus::RtReadyForCommands)
+    });
+    println!("not");
 }
 
 //#[test]
