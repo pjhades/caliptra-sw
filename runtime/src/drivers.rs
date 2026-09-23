@@ -41,6 +41,7 @@ use caliptra_common::cfi_check;
 use caliptra_common::crypto::Crypto;
 use caliptra_common::dice::{copy_ldevid_ecc384_cert, copy_ldevid_mldsa87_cert};
 use caliptra_common::mailbox_api::AddSubjectAltNameReq;
+#[cfg(feature = "stash-measurement-registers")]
 use caliptra_common::{start_wdt, stop_wdt, WdtTimeout};
 use caliptra_dpe::commands::{Command, DeriveContextCmd};
 use caliptra_dpe::context::{Context, ContextState, ContextType};

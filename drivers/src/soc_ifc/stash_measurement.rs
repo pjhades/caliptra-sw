@@ -14,7 +14,7 @@ Abstract:
 
 use crate::soc_ifc::SocIfc;
 use caliptra_error::{CaliptraError, CaliptraResult};
-use zerocopy::{FromBytes, IntoBytes};
+use zerocopy::{FromBytes, Immutable, IntoBytes};
 
 impl SocIfc {
     pub fn stash_measurement_iter(
@@ -56,7 +56,7 @@ impl SocIfc {
 }
 
 #[repr(C, packed)]
-#[derive(FromBytes, IntoBytes)]
+#[derive(Immutable, FromBytes, IntoBytes)]
 pub struct StashMeasurementData {
     pub metadata: [u8; 4],
     pub measurement: [u8; 48],

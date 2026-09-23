@@ -107,7 +107,7 @@ pub extern "C" fn entry_point() -> ! {
     cprintln!("[rt] Disable entropy source");
     drivers.trng.disable_entropy_source();
 
-    #[cfg(hw_rev = "2.2")]
+    #[cfg(feature = "stash-measurement-registers")]
     if let Err(e) = drivers.drain_stash_measurements() {
         handle_fatal_error(e.into());
     }

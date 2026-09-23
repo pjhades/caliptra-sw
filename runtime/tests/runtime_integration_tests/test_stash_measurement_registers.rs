@@ -1,11 +1,11 @@
 // Licensed under the Apache-2.0 license
 
-use caliptra_drivers::stash_measurement::{StashMeasurementData, DWORDS_PER_SLOT};
-use caliptra_emu_types::RvSize;
-use caliptra_hw_model::{CaliptraHwVersion, HwModel, InitParams};
-use core::mem::offset_of;
+use crate::common::{run_rt_test, RuntimeTestArgs};
+use caliptra_api::SocManager;
+use caliptra_drivers::soc_ifc::stash_measurement::{StashMeasurementData, DWORDS_PER_SLOT};
+use caliptra_hw_model::{CaliptraHwVersion, InitParams};
+use zerocopy::IntoBytes;
 
-//use caliptra_api::SocManager;
 //use caliptra_builder::ImageOptions;
 //    firmware::{APP_WITH_UART, FMC_WITH_UART},
 //use caliptra_common::mailbox_api::{
@@ -31,6 +31,7 @@ fn test_drain_stash_measurements() {
         init_params: Some(InitParams {
             hw_version: CaliptraHwVersion::V2_2,
             subsystem_mode: false,
+            ..Default::default()
         }),
         ..Default::default()
     };
@@ -58,7 +59,7 @@ fn test_drain_stash_measurements() {
                 .soc_ifc()
                 .stash_bank_slot_data()
                 .at(i * DWORDS_PER_SLOT + j)
-                .write(|_| u32::from_le_bytes(chunk))
+                .write(|_| u32::from_le_bytes(chunk.try_into().unwrap()))
         }
         model
             .soc_ifc()
