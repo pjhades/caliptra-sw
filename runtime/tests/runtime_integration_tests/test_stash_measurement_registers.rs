@@ -4,6 +4,9 @@ use crate::common::{rom_for_fw_integration_tests, run_rt_test, RuntimeTestArgs};
 use caliptra_api::SocManager;
 use caliptra_builder::firmware::APP_WITH_UART_STASH_MEASUREMENT_REGISTERS;
 use caliptra_common::{
+    mailbox_api::{
+        CommandId, MailboxReq, MailboxReqHeader, QuotePcrsEcc384Req, QuotePcrsEcc384Resp,
+    },
     memory_layout::{ROM_ORG, ROM_SIZE, ROM_STACK_ORG, ROM_STACK_SIZE, STACK_ORG, STACK_SIZE},
     FMC_ORG, FMC_SIZE, RUNTIME_ORG, RUNTIME_SIZE,
 };
@@ -13,7 +16,8 @@ use caliptra_hw_model::{
     StackRange,
 };
 use caliptra_runtime::RtBootStatus;
-use zerocopy::IntoBytes;
+use sha2::{Digest, Sha384};
+use zerocopy::{FromBytes, IntoBytes};
 
 //use caliptra_builder::ImageOptions;
 //    firmware::{APP_WITH_UART, FMC_WITH_UART},
@@ -111,11 +115,35 @@ fn test_drain_stash_measurements() {
     });
 
     assert!(model.soc_ifc().stash_bank_status().read().cptra_lock());
+
+    // Verify the measurements actually landed in PCR31.
+    let mut cmd = MailboxReq::QuotePcrsEcc384(QuotePcrsEcc384Req {
+        hdr: MailboxReqHeader { chksum: 0 },
+        nonce: [0u8; 32],
+    });
+    cmd.populate_chksum().unwrap();
+
+    let resp = model
+        .mailbox_execute(
+            u32::from(CommandId::QUOTE_PCRS_ECC384),
+            cmd.as_bytes().unwrap(),
+        )
+        .unwrap()
+        .expect("We should have received a response");
+    let resp = QuotePcrsEcc384Resp::read_from_bytes(resp.as_slice()).unwrap();
+
+    let mut expected_pcr31 = [0u8; 48];
+    for measurement in measurements.iter() {
+        let mut hasher = Sha384::new();
+        hasher.update(expected_pcr31);
+        hasher.update(measurement.measurement);
+        expected_pcr31.copy_from_slice(&hasher.finalize());
+    }
+    assert_eq!(resp.pcrs[31], expected_pcr31);
 }
 
 // more tests
 // 1. test timer fires if soc never writes end-of-stash
-// 2. end-to-end, verify that the drained measurements are really written to dpe and elsewhere
 
 //#[test]
 //fn test_stash_measurement() {
