@@ -54,6 +54,7 @@ fn run_model(subsystem_mode: bool) -> DefaultHwModel {
     ];
     let runtime_test_args = RuntimeTestArgs {
         test_fwid: Some(&APP_WITH_UART_STASH_MEASUREMENT_REGISTERS),
+        successful_reach_rt: false,
         init_params: Some(InitParams {
             hw_version: CaliptraHwVersion::V2_2,
             rom: &rom,
@@ -100,12 +101,21 @@ fn test_drain_stash_measurements() {
             .write(|x| x.lock(1 << i));
     }
 
+    model
+        .soc_ifc()
+        .stash_end_stash()
+        .write(|x| x.end_stash(true));
+
     model.step_until(|m| {
         m.soc_ifc().cptra_boot_status().read() == u32::from(RtBootStatus::RtReadyForCommands)
     });
 
     assert!(model.soc_ifc().stash_bank_status().read().cptra_lock());
 }
+
+// more tests
+// 1. test timer fires if soc never writes end-of-stash
+// 2. end-to-end, verify that the drained measurements are really written to dpe and elsewhere
 
 //#[test]
 //fn test_stash_measurement() {
