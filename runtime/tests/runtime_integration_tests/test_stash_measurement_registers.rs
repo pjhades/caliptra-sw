@@ -2,6 +2,7 @@
 
 use crate::common::{rom_for_fw_integration_tests, run_rt_test, RuntimeTestArgs};
 use caliptra_api::SocManager;
+use caliptra_builder::firmware::APP_WITH_UART_STASH_MEASUREMENT_REGISTERS;
 use caliptra_common::{
     memory_layout::{ROM_ORG, ROM_SIZE, ROM_STACK_ORG, ROM_STACK_SIZE, STACK_ORG, STACK_SIZE},
     FMC_ORG, FMC_SIZE, RUNTIME_ORG, RUNTIME_SIZE,
@@ -52,6 +53,7 @@ fn run_model(subsystem_mode: bool) -> DefaultHwModel {
         ),
     ];
     let runtime_test_args = RuntimeTestArgs {
+        test_fwid: Some(&APP_WITH_UART_STASH_MEASUREMENT_REGISTERS),
         init_params: Some(InitParams {
             hw_version: CaliptraHwVersion::V2_2,
             rom: &rom,
@@ -98,12 +100,11 @@ fn test_drain_stash_measurements() {
             .write(|x| x.lock(1 << i));
     }
 
-    println!("coool");
-
     model.step_until(|m| {
         m.soc_ifc().cptra_boot_status().read() == u32::from(RtBootStatus::RtReadyForCommands)
     });
-    println!("not");
+
+    assert!(model.soc_ifc().stash_bank_status().read().cptra_lock());
 }
 
 //#[test]

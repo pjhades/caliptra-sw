@@ -213,6 +213,19 @@ pub const APP_WITH_UART_OCP_LOCK_FPGA: FwId = FwId {
     },
 };
 
+pub const APP_WITH_UART_STASH_MEASUREMENT_REGISTERS: FwId = FwId {
+    crate_name: "caliptra-runtime",
+    bin_name: "caliptra-runtime",
+    fw_type: FirmwareType::Source {
+        features: &[
+            "emu",
+            "fips_self_test",
+            "stash-measurement-registers",
+            "cfi",
+        ],
+    },
+};
+
 pub const APP_ZEROS: FwId = FwId {
     crate_name: "caliptra-zeros",
     bin_name: "caliptra-zeros",
@@ -757,6 +770,7 @@ pub const REGISTERED_FW: &[&FwId] = &[
     &APP_WITH_UART_FIPS_TEST_HOOKS_FPGA,
     &APP_WITH_UART_OCP_LOCK_FPGA,
     &APP_WITH_UART_FPGA,
+    &APP_WITH_UART_STASH_MEASUREMENT_REGISTERS,
     &APP_ZEROS,
     &FMC_ZEROS,
     &caliptra_builder_tests::FWID,

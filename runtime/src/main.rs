@@ -108,6 +108,8 @@ pub extern "C" fn entry_point() -> ! {
     drivers.trng.disable_entropy_source();
 
     #[cfg(feature = "stash-measurement-registers")]
+    cprintln!("[rt] Drain stash measurements");
+    #[cfg(feature = "stash-measurement-registers")]
     if let Err(e) = drivers.drain_stash_measurements() {
         handle_fatal_error(e.into());
     }

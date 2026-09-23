@@ -237,6 +237,7 @@ pub fn build_firmware_elfs_uncached<'a>(
         for &fwid in invocation.fwids.iter() {
             cmd.arg("--bin").arg(fwid.bin_name);
         }
+        println!("cmd={cmd:?}");
         run_cmd(&mut cmd)?;
 
         let target_dir = if let Some(dir) = std::env::var_os("CARGO_TARGET_DIR") {
