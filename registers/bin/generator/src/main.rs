@@ -270,190 +270,238 @@ fn real_main() -> Result<(), Box<dyn Error>> {
 
     let dest_dir = Path::new(&args[args.len() - 1]);
 
-    let file_source = caliptra_systemrdl::FsFileSource::new();
-    for patch in patches {
-        file_source.add_patch(&patch.0, patch.1, patch.2);
-    }
-    let scope = caliptra_systemrdl::Scope::parse_root(&file_source, &rdl_files)
-        .map_err(|s| s.to_string())?;
-    let scope = scope.as_parent();
+    //let file_source = caliptra_systemrdl::FsFileSource::new();
+    //for patch in patches {
+    //    file_source.add_patch(&patch.0, patch.1, patch.2);
+    //}
 
-    // These are types like kv_read_ctrl_reg that are used by multiple crates
-    let root_block = RegisterBlock {
-        declared_register_types: caliptra_ureg_systemrdl::translate_types(scope)?,
-        ..Default::default()
-    };
-    let mut root_block = root_block.validate_and_dedup()?;
+    let patched_rdl_files = patch_rdl_files(&mut rdl_files, &patches)?;
+    let peakrdl = std::env::var("PEAKRDL").unwrap_or_else(|_| "peakrdl".into());
+    let output = Command::new(&peakrdl)
+        .args(["rdl-exporter", "-o", "potato"])
+        .args(rdl_files)
+        .stderr(Stdio::inherit())
+        .output()?;
 
-    let mut extern_types = HashMap::new();
-    caliptra_ureg_codegen::build_extern_types(&root_block, quote! { crate }, &mut extern_types);
+    println!("{:?}", output);
 
-    let addrmap_tops = vec!["clp", "clp2", "mci_top"];
-    let mut blocks = Vec::<RegisterBlock>::new();
-    for top in addrmap_tops {
-        let mut block =
-            caliptra_ureg_systemrdl::translate_addrmap(scope.lookup_typedef(top).unwrap())?;
-        blocks.append(&mut block);
+    for patched_file in patched_rdl_files {
+        std::fs::remove_file(patched_file)?;
     }
 
-    let mut validated_blocks = vec![];
-    for mut block in blocks {
-        if block.name.ends_with("_reg") || block.name.ends_with("_csr") {
-            block.name = block.name[0..block.name.len() - 4].to_string();
-        }
-        if block.name == "hmac" {
-            remove_reg_prefixes(&mut block.registers, "hmac384_");
-        } else {
-            remove_reg_prefixes(
-                &mut block.registers,
-                &format!("{}_", block.name.to_ascii_lowercase()),
-            );
-        }
-        if block.name == "soc_ifc" {
-            block.rename_enum_variants(&[
-                ("DEVICE_UNPROVISIONED", "UNPROVISIONED"),
-                ("DEVICE_MANUFACTURING", "MANUFACTURING"),
-                ("DEVICE_PRODUCTION", "PRODUCTION"),
-            ]);
-            // Move the TRNG retrieval registers into an independent block;
-            // these need to be owned by a separate driver than the rest of
-            // soc_ifc.
-            let mut trng_block = RegisterBlock {
-                name: "soc_ifc_trng".into(),
-                instances: vec![RegisterBlockInstance {
-                    name: "soc_ifc_trng_reg".into(),
-                    address: block.instances[0].address,
-                }],
-                ..Default::default()
-            };
-            block.registers.retain(|field| {
-                if matches!(field.name.as_str(), "CPTRA_TRNG_DATA" | "CPTRA_TRNG_STATUS") {
-                    trng_block.registers.push(field.clone());
-                    false // remove field from soc_ifc
-                } else {
-                    true // keep field
-                }
-            });
-            let trng_block = trng_block.validate_and_dedup()?;
-            validated_blocks.push(trng_block);
-        }
+    //let scope = caliptra_systemrdl::Scope::parse_root(&file_source, &rdl_files)
+    //    .map_err(|s| s.to_string())?;
+    //let scope = scope.as_parent();
 
-        let mut block = block.validate_and_dedup()?;
+    //// These are types like kv_read_ctrl_reg that are used by multiple crates
+    //let root_block = RegisterBlock {
+    //    declared_register_types: caliptra_ureg_systemrdl::translate_types(scope)?,
+    //    ..Default::default()
+    //};
+    //let mut root_block = root_block.validate_and_dedup()?;
 
-        if block.block().name == "ecc" {
-            block.transform(|t| {
-                // [TODO]: Put this enumeration into the RDL and remove this hack
-                t.set_register_enum(
-                    "CTRL",
-                    "CTRL",
-                    Rc::new(Enum {
-                        name: Some("Ctrl".into()),
-                        variants: vec![
-                            EnumVariant {
-                                name: "NONE".into(),
-                                value: 0,
-                            },
-                            EnumVariant {
-                                name: "KEYGEN".into(),
-                                value: 1,
-                            },
-                            EnumVariant {
-                                name: "SIGNING".into(),
-                                value: 2,
-                            },
-                            EnumVariant {
-                                name: "VERIFYING".into(),
-                                value: 3,
-                            },
-                        ],
-                        bit_width: 2,
-                    }),
-                );
-            });
-        }
-        if block.block().name == "mldsa" {
-            block.transform(|t| {
-                // [TODO]: Put this enumeration into the RDL and remove this hack
-                t.set_register_enum(
-                    "CTRL",
-                    "CTRL",
-                    Rc::new(Enum {
-                        name: Some("Ctrl".into()),
-                        variants: vec![
-                            EnumVariant {
-                                name: "NONE".into(),
-                                value: 0,
-                            },
-                            EnumVariant {
-                                name: "KEYGEN".into(),
-                                value: 1,
-                            },
-                            EnumVariant {
-                                name: "SIGNING".into(),
-                                value: 2,
-                            },
-                            EnumVariant {
-                                name: "VERIFYING".into(),
-                                value: 3,
-                            },
-                            EnumVariant {
-                                name: "KEYGEN_SIGN".into(),
-                                value: 4,
-                            },
-                        ],
-                        bit_width: 3,
-                    }),
-                );
-            });
-        }
+    //let mut extern_types = HashMap::new();
+    //caliptra_ureg_codegen::build_extern_types(&root_block, quote! { crate }, &mut extern_types);
 
-        let module_ident = format_ident!("{}", block.block().name);
-        caliptra_ureg_codegen::build_extern_types(
-            &block,
-            quote! { crate::#module_ident },
-            &mut extern_types,
-        );
-        validated_blocks.push(block);
-    }
-    let mut root_submod_tokens = TokenStream::new();
+    //let addrmap_tops = vec!["clp", "clp2", "mci_top"];
+    //let mut blocks = Vec::<RegisterBlock>::new();
+    //for top in addrmap_tops {
+    //    let mut block =
+    //        caliptra_ureg_systemrdl::translate_addrmap(scope.lookup_typedef(top).unwrap())?;
+    //    blocks.append(&mut block);
+    //}
 
-    let mut all_blocks: Vec<_> = std::iter::once(&mut root_block)
-        .chain(validated_blocks.iter_mut())
-        .collect();
-    caliptra_ureg_schema::filter_unused_types(&mut all_blocks);
+    //let mut validated_blocks = vec![];
+    //for mut block in blocks {
+    //    if block.name.ends_with("_reg") || block.name.ends_with("_csr") {
+    //        block.name = block.name[0..block.name.len() - 4].to_string();
+    //    }
+    //    if block.name == "hmac" {
+    //        remove_reg_prefixes(&mut block.registers, "hmac384_");
+    //    } else {
+    //        remove_reg_prefixes(
+    //            &mut block.registers,
+    //            &format!("{}_", block.name.to_ascii_lowercase()),
+    //        );
+    //    }
+    //    if block.name == "soc_ifc" {
+    //        block.rename_enum_variants(&[
+    //            ("DEVICE_UNPROVISIONED", "UNPROVISIONED"),
+    //            ("DEVICE_MANUFACTURING", "MANUFACTURING"),
+    //            ("DEVICE_PRODUCTION", "PRODUCTION"),
+    //        ]);
+    //        // Move the TRNG retrieval registers into an independent block;
+    //        // these need to be owned by a separate driver than the rest of
+    //        // soc_ifc.
+    //        let mut trng_block = RegisterBlock {
+    //            name: "soc_ifc_trng".into(),
+    //            instances: vec![RegisterBlockInstance {
+    //                name: "soc_ifc_trng_reg".into(),
+    //                address: block.instances[0].address,
+    //            }],
+    //            ..Default::default()
+    //        };
+    //        block.registers.retain(|field| {
+    //            if matches!(field.name.as_str(), "CPTRA_TRNG_DATA" | "CPTRA_TRNG_STATUS") {
+    //                trng_block.registers.push(field.clone());
+    //                false // remove field from soc_ifc
+    //            } else {
+    //                true // keep field
+    //            }
+    //        });
+    //        let trng_block = trng_block.validate_and_dedup()?;
+    //        validated_blocks.push(trng_block);
+    //    }
 
-    for block in validated_blocks {
-        // rust expects modules and files in lowercase naming
-        let block_name = block.block().name.to_lowercase();
-        let module_ident = format_ident!("{}", block_name);
-        let dest_file = dest_dir.join(format!("{}.rs", block_name));
+    //    let mut block = block.validate_and_dedup()?;
 
-        let tokens = caliptra_ureg_codegen::generate_code(
-            &block,
-            caliptra_ureg_codegen::Options {
-                extern_types: extern_types.clone(),
-                module: quote! { #module_ident },
-            },
-        );
-        root_submod_tokens.extend(quote! { pub mod #module_ident; });
-        file_action(
-            &dest_file,
-            &rustfmt(&(header.clone() + &tokens.to_string()))?,
-        )?;
-    }
-    let root_type_tokens = caliptra_ureg_codegen::generate_code(
-        &root_block,
-        caliptra_ureg_codegen::Options {
-            extern_types: extern_types.clone(),
-            ..Default::default()
-        },
-    );
-    let root_tokens = quote! { #root_type_tokens #root_submod_tokens };
-    file_action(
-        &dest_dir.join("lib.rs"),
-        &rustfmt(&(header.clone() + &root_tokens.to_string()))?,
-    )?;
+    //    if block.block().name == "ecc" {
+    //        block.transform(|t| {
+    //            // [TODO]: Put this enumeration into the RDL and remove this hack
+    //            t.set_register_enum(
+    //                "CTRL",
+    //                "CTRL",
+    //                Rc::new(Enum {
+    //                    name: Some("Ctrl".into()),
+    //                    variants: vec![
+    //                        EnumVariant {
+    //                            name: "NONE".into(),
+    //                            value: 0,
+    //                        },
+    //                        EnumVariant {
+    //                            name: "KEYGEN".into(),
+    //                            value: 1,
+    //                        },
+    //                        EnumVariant {
+    //                            name: "SIGNING".into(),
+    //                            value: 2,
+    //                        },
+    //                        EnumVariant {
+    //                            name: "VERIFYING".into(),
+    //                            value: 3,
+    //                        },
+    //                    ],
+    //                    bit_width: 2,
+    //                }),
+    //            );
+    //        });
+    //    }
+    //    if block.block().name == "mldsa" {
+    //        block.transform(|t| {
+    //            // [TODO]: Put this enumeration into the RDL and remove this hack
+    //            t.set_register_enum(
+    //                "CTRL",
+    //                "CTRL",
+    //                Rc::new(Enum {
+    //                    name: Some("Ctrl".into()),
+    //                    variants: vec![
+    //                        EnumVariant {
+    //                            name: "NONE".into(),
+    //                            value: 0,
+    //                        },
+    //                        EnumVariant {
+    //                            name: "KEYGEN".into(),
+    //                            value: 1,
+    //                        },
+    //                        EnumVariant {
+    //                            name: "SIGNING".into(),
+    //                            value: 2,
+    //                        },
+    //                        EnumVariant {
+    //                            name: "VERIFYING".into(),
+    //                            value: 3,
+    //                        },
+    //                        EnumVariant {
+    //                            name: "KEYGEN_SIGN".into(),
+    //                            value: 4,
+    //                        },
+    //                    ],
+    //                    bit_width: 3,
+    //                }),
+    //            );
+    //        });
+    //    }
+
+    //    let module_ident = format_ident!("{}", block.block().name);
+    //    caliptra_ureg_codegen::build_extern_types(
+    //        &block,
+    //        quote! { crate::#module_ident },
+    //        &mut extern_types,
+    //    );
+    //    validated_blocks.push(block);
+    //}
+    //let mut root_submod_tokens = TokenStream::new();
+
+    //let mut all_blocks: Vec<_> = std::iter::once(&mut root_block)
+    //    .chain(validated_blocks.iter_mut())
+    //    .collect();
+    //caliptra_ureg_schema::filter_unused_types(&mut all_blocks);
+
+    //for block in validated_blocks {
+    //    // rust expects modules and files in lowercase naming
+    //    let block_name = block.block().name.to_lowercase();
+    //    let module_ident = format_ident!("{}", block_name);
+    //    let dest_file = dest_dir.join(format!("{}.rs", block_name));
+
+    //    let tokens = caliptra_ureg_codegen::generate_code(
+    //        &block,
+    //        caliptra_ureg_codegen::Options {
+    //            extern_types: extern_types.clone(),
+    //            module: quote! { #module_ident },
+    //        },
+    //    );
+    //    root_submod_tokens.extend(quote! { pub mod #module_ident; });
+    //    file_action(
+    //        &dest_file,
+    //        &rustfmt(&(header.clone() + &tokens.to_string()))?,
+    //    )?;
+    //}
+    //let root_type_tokens = caliptra_ureg_codegen::generate_code(
+    //    &root_block,
+    //    caliptra_ureg_codegen::Options {
+    //        extern_types: extern_types.clone(),
+    //        ..Default::default()
+    //    },
+    //);
+    //let root_tokens = quote! { #root_type_tokens #root_submod_tokens };
+    //file_action(
+    //    &dest_dir.join("lib.rs"),
+    //    &rustfmt(&(header.clone() + &root_tokens.to_string()))?,
+    //)?;
     Ok(())
+}
+
+// As peakrdl only accepts disk files, we store the patched files in the same
+// directory as the original ones. We replace the original files with the patched ones
+// in the list of RDL source files. Return a list of patched files so that they can get
+// removed afterwards.
+fn patch_rdl_files(
+    rdl_files: &mut Vec<PathBuf>,
+    patches: &Vec<(PathBuf, &str, &str)>,
+) -> std::io::Result<Vec<PathBuf>> {
+    let mut patched_files = vec![];
+
+    for path in rdl_files.iter_mut() {
+        let mut content = std::fs::read_to_string(&path)?;
+        let mut new_path: Option<PathBuf> = None;
+
+        for (to_be_patched, from, to) in patches {
+            if path != to_be_patched {
+                continue;
+            }
+            // peakrdl expects sources files to have .rdl extension.
+            new_path = Some(path.with_extension("patched.rdl"));
+            content = content.replace(from, to);
+        }
+
+        if let Some(p) = new_path {
+            std::fs::write(&p, content)?;
+            *path = p.clone();
+            patched_files.push(p);
+        }
+    }
+
+    Ok(patched_files)
 }
 
 fn main() {
