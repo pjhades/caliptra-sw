@@ -18,5 +18,10 @@ if [[ ! -f $"../hw/$1/rtl/.git" ]]; then
     exit 1
 fi
 
+# Ensure peakrdl CLI is installed
+VENV="$PWD/.venv"
+[ -d "$VENV" ] || python3 -m venv "$VENV"
+"$VENV"/bin/pip install --quiet "./bin/rdl-exporter[cli]"
+export PEAKRDL="$VENV/bin/peakrdl"
 
 cargo run --manifest-path bin/generator/Cargo.toml -- ../hw/$1/rtl bin/extra-rdl/ ../hw/$1/i3c-core-rtl ../hw/$1/caliptra-ss ../hw/$1/registers/src/
