@@ -41,3 +41,10 @@ ci-tools/host-runner/secrets/
 # Mjolnir
 tools/mjolnir/results/
 tools/mjolnir/workspace/
+
+*.egg-info/
+__pycache__/
+*.pyc
+.venv/
+build/
+dist/

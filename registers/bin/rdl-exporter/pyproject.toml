@@ -1,0 +1,30 @@
+# Licensed under the Apache-2.0 license
+
+[build-system]
+requires = ["setuptools >= 77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rdl-exporter"
+dynamic = ["version"]
+requires-python = ">=3.8"
+dependencies = [
+    "systemrdl-compiler >= 1.31",
+]
+description = "Generate intermediate representation from RDL source files for Rust code generation"
+readme = "README.md"
+license = "Apache-2.0"
+
+[project.urls]
+Source = "https://github.com/chipsalliance/caliptra-sw"
+
+[project.optional-dependencies]
+cli = [
+    "peakrdl-cli >= 1.2.3",
+]
+
+[project.entry-points."peakrdl.exporters"]
+rdl-exporter = "rdl_exporter.__peakrdl__:Exporter"
+
+[tool.setuptools.packages.find]
+where = ["src"]
