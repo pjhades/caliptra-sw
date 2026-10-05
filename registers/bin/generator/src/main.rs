@@ -283,7 +283,11 @@ fn real_main() -> Result<(), Box<dyn Error>> {
         .stderr(Stdio::inherit())
         .output()?;
 
-    println!("{:?}", output);
+    println!("{}\n", &output.status);
+    println!("stdout:");
+    println!("{}", String::from_utf8_lossy(&output.stdout));
+    println!("stderr:");
+    println!("{}", String::from_utf8_lossy(&output.stderr));
 
     for patched_file in patched_rdl_files {
         std::fs::remove_file(patched_file)?;

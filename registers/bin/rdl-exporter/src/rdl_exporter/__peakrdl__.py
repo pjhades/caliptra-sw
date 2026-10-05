@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 from peakrdl.plugins.exporter import ExporterSubcommandPlugin
 
+from .exporter import CaliptraExporter
+
 if TYPE_CHECKING:
     import argparse
     from systemrdl.node import AddrmapNode
@@ -16,4 +18,5 @@ class Exporter(ExporterSubcommandPlugin):
         pass
 
     def do_export(self, top_node: 'AddrmapNode', options: 'argparse.Namespace') -> None:
-        raise NotImplementedError
+        e = CaliptraExporter()
+        e.export(top_node, options)
