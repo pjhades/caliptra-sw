@@ -277,17 +277,21 @@ fn real_main() -> Result<(), Box<dyn Error>> {
 
     let patched_rdl_files = patch_rdl_files(&mut rdl_files, &patches)?;
     let peakrdl = std::env::var("PEAKRDL").unwrap_or_else(|_| "peakrdl".into());
-    let output = Command::new(&peakrdl)
-        .args(["rdl-exporter", "-o", "potato"])
-        .args(rdl_files)
-        .stderr(Stdio::inherit())
-        .output()?;
 
-    println!("{}\n", &output.status);
-    println!("stdout:");
-    println!("{}", String::from_utf8_lossy(&output.stdout));
-    println!("stderr:");
-    println!("{}", String::from_utf8_lossy(&output.stderr));
+    let top_addrmaps = ["clp", "clp2", "mci_top"];
+    for top in &top_addrmaps {
+        let output = Command::new(&peakrdl)
+            .args(["rdl-exporter", "-o", "potato", "--top", top])
+            .args(rdl_files.clone())
+            .stderr(Stdio::inherit())
+            .output()?;
+        println!("run for top {}", top);
+        println!("{}", &output.status);
+        println!("stdout:");
+        println!("{}", String::from_utf8_lossy(&output.stdout));
+        println!("stderr:");
+        println!("{}", String::from_utf8_lossy(&output.stderr));
+    }
 
     for patched_file in patched_rdl_files {
         std::fs::remove_file(patched_file)?;
