@@ -1,0 +1,12 @@
+addrmap tiny {
+    default regwidth = 32;
+    enum mode_e { A = 0; B = 1; };
+    reg ctrl_reg {
+        field { sw=rw; hw=r; desc="enable"; } en[1] = 0;
+        field { sw=rw; encode=mode_e; } mode[1] = 0;
+    };
+    ctrl_reg CTRL;
+    ctrl_reg CTRL_ARR[4];
+    reg { field { sw=r; hw=w; } status[8]; } STATUS @ 0x20;
+    external mem { mementries=16; memwidth=32; } MEM @ 0x100;
+};

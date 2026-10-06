@@ -1,7 +1,13 @@
 #!/bin/bash
 # Licensed under the Apache-2.0 license
 
+<<<<<<< HEAD
 set -euo pipefail
+=======
+set -o errexit
+
+cd "$(dirname "${BASH_SOURCE[0]}")"
+>>>>>>> 58767006f (wip)
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
@@ -35,5 +41,6 @@ if [[ ! -e "$ss_dir/.git" ]]; then
 fi
 git -C "$ss_dir" submodule update --init --recursive
 
+cargo test -p caliptra_registers_generator -- --nocapture
 cargo run --locked --manifest-path registers/bin/generator/Cargo.toml -- \
     "$rtl_dir" registers/bin/extra-rdl "$i3c_dir" "$ss_dir" "$dest_dir"

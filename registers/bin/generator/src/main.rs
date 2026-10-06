@@ -5,7 +5,11 @@ use std::fmt::Write;
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::rc::Rc;
-use std::{error::Error, path::Path, process::Command};
+use std::{
+    error::Error,
+    path::Path,
+    process::{Command, Output},
+};
 
 use caliptra_ureg_schema::{Enum, EnumVariant, Register, RegisterBlock, RegisterBlockInstance};
 use quote::__private::TokenStream;
@@ -269,22 +273,11 @@ fn real_main() -> Result<(), Box<dyn Error>> {
     header.push_str(HEADER_SUFFIX);
 
     let dest_dir = Path::new(&args[args.len() - 1]);
-
-    //let file_source = caliptra_systemrdl::FsFileSource::new();
-    //for patch in patches {
-    //    file_source.add_patch(&patch.0, patch.1, patch.2);
-    //}
-
     let patched_rdl_files = patch_rdl_files(&mut rdl_files, &patches)?;
-    let peakrdl = std::env::var("PEAKRDL").unwrap_or_else(|_| "peakrdl".into());
 
     let top_addrmaps = ["clp", "clp2", "mci_top"];
     for top in &top_addrmaps {
-        let output = Command::new(&peakrdl)
-            .args(["rdl-exporter", "-o", "potato", "--top", top])
-            .args(rdl_files.clone())
-            .stderr(Stdio::inherit())
-            .output()?;
+        let output = invoke_peak_rdl(&rdl_files, Some(top))?;
         println!("run for top {}", top);
         println!("{}", &output.status);
         println!("stdout:");
@@ -296,6 +289,11 @@ fn real_main() -> Result<(), Box<dyn Error>> {
     for patched_file in patched_rdl_files {
         std::fs::remove_file(patched_file)?;
     }
+
+    //let file_source = caliptra_systemrdl::FsFileSource::new();
+    //for patch in patches {
+    //    file_source.add_patch(&patch.0, patch.1, patch.2);
+    //}
 
     //let scope = caliptra_systemrdl::Scope::parse_root(&file_source, &rdl_files)
     //    .map_err(|s| s.to_string())?;
@@ -512,9 +510,47 @@ fn patch_rdl_files(
     Ok(patched_files)
 }
 
+fn invoke_peak_rdl(rdl_files: &[PathBuf], top: Option<&str>) -> std::io::Result<Output> {
+    let exe = std::env::var("PEAKRDL").unwrap_or_else(|_| "peakrdl".into());
+    let mut args = vec!["rdl-exporter", "-o", "potato"];
+    if let Some(top) = top {
+        args.push("--top");
+        args.push(top);
+    }
+    Command::new(&exe)
+        // TODO fix this output dir
+        .args(&args)
+        .args(rdl_files)
+        .stderr(Stdio::inherit())
+        .output()
+}
+
 fn main() {
     if let Err(err) = real_main() {
         eprintln!("{}", err);
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parsing_scope() {
+        // TODO currently we use parse_root but eventually we should just paste the expected
+        // parsed Scope here, and remove the parser entirely.
+        let file_source = caliptra_systemrdl::FsFileSource::new();
+        let rdl_files = [PathBuf::from("../rdl-exporter/testdata/tiny.rdl")];
+        let scope = caliptra_systemrdl::Scope::parse_root(&file_source, &rdl_files)
+            .map_err(|s| s.to_string())
+            .unwrap();
+
+        let output = invoke_peak_rdl(&rdl_files, None).unwrap();
+
+        println!("{:?}", scope);
+        println!("");
+        println!("{:?}", output);
+        println!("nice");
     }
 }
