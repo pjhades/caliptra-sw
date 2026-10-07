@@ -30,5 +30,6 @@ class CaliptraExporter:
         for name in top_node.list_properties():
             prop = top_node.get_property(name)
             properties[name] = prop
-        #for child in top_node.children(unroll=True):
-        #    print(child.get_path(), child.is_instance)
+
+        for child in top_node.children(unroll=True):
+            print(f'{child.get_path()}')

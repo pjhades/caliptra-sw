@@ -550,7 +550,9 @@ mod tests {
 
         println!("{:?}", scope);
         println!("");
-        println!("{:?}", output);
+        println!("{}", String::from_utf8_lossy(&output.stdout));
         println!("nice");
+
+        assert!(false);
     }
 }
