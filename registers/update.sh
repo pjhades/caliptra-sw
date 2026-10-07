@@ -1,13 +1,7 @@
 #!/bin/bash
 # Licensed under the Apache-2.0 license
 
-<<<<<<< HEAD
 set -euo pipefail
-=======
-set -o errexit
-
-cd "$(dirname "${BASH_SOURCE[0]}")"
->>>>>>> 58767006f (wip)
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
