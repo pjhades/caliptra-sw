@@ -27,7 +27,7 @@ echo "Updating $dest_dir from $ss_dir and its pinned dependencies"
 # Ensure peakrdl CLI is installed
 VENV="$PWD/.venv"
 [ -d "$VENV" ] || python3 -m venv "$VENV"
-"$VENV"/bin/pip install --quiet "./bin/rdl-exporter[cli]"
+"$VENV"/bin/pip install --quiet "$(dirname ${BASH_SOURCE[0]})/bin/rdl-exporter[cli]"
 export PEAKRDL="$VENV/bin/peakrdl"
 
 if [[ ! -e "$ss_dir/.git" ]]; then
